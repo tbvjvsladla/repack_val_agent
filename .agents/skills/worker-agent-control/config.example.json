@@ -1,0 +1,13 @@
+{
+  "workspace": "/path/to/target_project",
+  "default_provider": "claude",
+  "discovery_timeout_seconds": 300,
+  "claude_discovery_max_turns": 16,
+  "context_files": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    ".claude/rules/workflow.md",
+    ".claude/rules/docs.md",
+    ".claude/rules/strategy.topology.md"
+  ]
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "결함 중심 코드 검토"
+  short_description: "독립 검토와 후보 재검증으로 확실한 신규 결함을 엄선합니다."
+  default_prompt: "$code-review로 지정한 변경을 검토하고 근거와 한계를 보고해줘."

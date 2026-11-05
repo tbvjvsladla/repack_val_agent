@@ -1,0 +1,4 @@
+interface:
+  display_name: "PR 전문 검토"
+  short_description: "여섯 전문 관점으로 변경의 동작과 검증 품질을 검토합니다."
+  default_prompt: "$pr-review-toolkit로 지정한 변경을 검토하고 근거와 한계를 보고해줘."

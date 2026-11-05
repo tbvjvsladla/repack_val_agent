@@ -1,0 +1,7 @@
+interface:
+  display_name: "Wiki Desk"
+  short_description: "프로젝트 문서의 이전 결정과 근거 구간을 찾아 확인하는 지식 사서"
+  default_prompt: "$wiki-desk로 이 프로젝트 문서에서 질문의 근거 구간을 찾아 확인해줘."
+
+policy:
+  allow_implicit_invocation: true

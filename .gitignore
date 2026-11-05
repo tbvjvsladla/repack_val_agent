@@ -1,0 +1,30 @@
+/seed/
+/temp/
+/tests/
+/.ouroboros/
+/__llm-wiki/.cache/
+
+# Machine-specific settings; the public export also excludes tracked copies.
+/.codex/config.toml
+/.agents/skills/worker-agent-control/config.json
+
+# Credentials and local overrides at any depth.
+.env
+.env.*
+!.env.example
+*.local.json
+*.local.toml
+auth.json
+credentials.json
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+
+# Generated artifacts. Root /tests/ above does not exclude skill tests.
+__pycache__/
+*.py[cod]
+node_modules/
+.pytest_cache/
+.venv/
+.DS_Store

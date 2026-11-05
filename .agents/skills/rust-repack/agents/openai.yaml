@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rust Repack"
+  short_description: "외부 동작을 보존하며 이름·타입·구조를 개선하는 Rust 변환"
+  default_prompt: "$rust-repack으로 지정한 코드를 기존 계약을 보존하는 Rust 클린코드로 변환해줘."
