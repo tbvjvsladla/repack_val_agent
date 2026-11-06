@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="780" viewBox="0 0 1100 780" role="img" aria-labelledby="loop-title loop-desc" font-family="Pretendard, sans-serif" font-size="24" fill="#141413">
+  <title id="loop-title">이번 개선의 근거를 다음 개선의 출발점으로</title>
+  <desc id="loop-desc">승인된 목표·보존 계약·완료 기준에서 후보와 계획을 정하고 선택 수단과 대상 워커로 실행한다. 실제 결과·필수 검사·기준선 비교로 메인이 채택·기준선 유지·보류를 판단하고 회고한다. 근거가 부족하거나 실패하면 목표·기준을 임의로 낮추지 않고 수정·재실행하거나 보류한다. 회고에는 성공·실패·조건·한계를 남긴다. 하단 기록 띠와 각 단계의 점선은 작업 전반의 문서 작성을 뜻하며 마지막 단계에서만 docs가 생성된다는 뜻이 아니다. 회고와 수행 기록은 docs/interview·docs/plan·docs/devlog·docs/checklist에 반영한다. 각 문서의 역할은 의도·계획 명세·수행·검증이다. 보이는 계획 표기는 plan에 대응한다. wiki-desk는 원문을 가리키는 포인터 위키이며 다음 과업에서 근거를 조회한다. 과업 기록과 생성 위키는 로컬 보존하고 헌장·스킬·작성 가이드는 배포 자산이다. 이 순환은 자동 학습이나 자율 승격을 뜻하지 않는다.</desc>
+  <defs>
+    <marker id="loop-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M 1 1 L 9 5 L 1 9 Z" fill="#1B365D"/></marker>
+    <marker id="loop-record-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M 1 1 L 9 5 L 1 9 Z" fill="#504e49"/></marker>
+  </defs>
+  <rect width="1100" height="780" fill="#f5f4ed"/>
+  <text x="44" y="54" font-size="30" font-weight="700" fill="#1B365D">이번 개선의 근거를 다음 개선의 출발점으로</text>
+  <text x="44" y="105">승인된 목표 · 보존 계약 · 완료 기준</text>
+  <g fill="#faf9f5" stroke="#e8e6dc" stroke-width="2">
+    <rect x="44" y="170" width="212" height="186"/>
+    <rect x="304" y="170" width="212" height="186"/>
+    <rect x="564" y="170" width="212" height="186"/>
+    <rect x="824" y="170" width="232" height="186"/>
+    <rect x="44" y="520" width="1012" height="171"/>
+  </g>
+  <g fill="none" stroke="#1B365D" stroke-width="2.5" marker-end="url(#loop-arrow)">
+    <path d="M 150 125 V 170"/>
+    <path d="M 256 264 H 304"/>
+    <path d="M 516 264 H 564"/>
+    <path d="M 776 264 H 824"/>
+    <path d="M 650 356 V 392 H 430 V 356"/>
+    <path d="M 510 622 H 570"/>
+    <path d="M 790 622 H 840"/>
+    <path d="M 1056 610 H 1076 V 141 H 218 V 170"/>
+  </g>
+  <g fill="none" stroke="#504e49" stroke-width="1.5" stroke-dasharray="5 5" marker-end="url(#loop-record-arrow)">
+    <path d="M 110 356 V 520"/>
+    <path d="M 335 356 V 520"/>
+    <path d="M 748 356 V 520"/>
+    <path d="M 1030 356 V 520"/>
+  </g>
+  <text x="64" y="212" font-size="28" font-weight="700" fill="#1B365D">후보 / 계획</text>
+  <text x="64" y="257" font-size="22"><tspan x="64" dy="0">후보를 대조하고</tspan><tspan x="64" dy="36">실행안을 선택</tspan></text>
+  <text x="324" y="212" font-size="28" font-weight="700" fill="#1B365D">실행</text>
+  <text x="324" y="257" font-size="22"><tspan x="324" dy="0">선택 수단 +</tspan><tspan x="324" dy="36">대상 워커</tspan></text>
+  <text x="584" y="212" font-size="28" font-weight="700" fill="#1B365D">검증</text>
+  <text x="584" y="257" font-size="22"><tspan x="584" dy="0">실제 결과</tspan><tspan x="584" dy="34">필수 검사</tspan><tspan x="584" dy="34">기준선 비교</tspan></text>
+  <text x="844" y="212" font-size="26" font-weight="700" fill="#1B365D">메인 판단 / 회고</text>
+  <text x="844" y="257" font-size="22"><tspan x="844" dy="0">채택 · 기준선 유지</tspan><tspan x="844" dy="34">보류</tspan><tspan x="844" dy="34">성공·실패·한계 기록</tspan></text>
+  <text x="390" y="432" font-size="22" font-weight="600" fill="#1B365D">실패·근거 부족</text>
+  <text x="390" y="466" font-size="22" fill="#1B365D">수정·재실행 또는 보류</text>
+  <text x="390" y="500" font-size="22" fill="#504e49">목표·기준을 낮추지 않는다</text>
+  <text x="64" y="553" font-size="23" font-weight="600">과업 전반에서 작성 · 회고·수행 기록 반영</text>
+  <path d="M 64 572 H 1036" fill="none" stroke="#e8e6dc" stroke-width="2"/>
+  <text x="64" y="612" font-size="26" font-weight="700" fill="#1B365D">docs/</text>
+  <text x="64" y="651" font-size="22">interview · 계획 · devlog · checklist</text>
+  <text x="600" y="612" font-size="26" font-weight="700" fill="#1B365D">wiki-desk</text>
+  <text x="600" y="651" font-size="22">원문 포인터 위키</text>
+  <text x="870" y="612" font-size="26" font-weight="700" fill="#1B365D">다음 과업</text>
+  <text x="870" y="651" font-size="22">근거 조회</text>
+  <text x="44" y="741" font-size="22" fill="#504e49">과업 기록·생성 위키: 로컬 보존</text>
+  <text x="1056" y="741" text-anchor="end" font-size="22" fill="#504e49">헌장·스킬·작성 가이드: 배포 자산</text>
+</svg>
