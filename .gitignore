@@ -2,7 +2,17 @@
 /temp/
 /tests/
 /.ouroboros/
-/__llm-wiki/.cache/
+# Wiki configuration is reusable; source-dependent runtime data stays local.
+/__llm-wiki/*
+!/__llm-wiki/.gitignore
+!/__llm-wiki/contract.json
+!/__llm-wiki/glossary.json
+
+# Publish one writing guide per document role; keep task history local.
+/docs/**
+!/docs/*/
+!/docs/*/doc_gen_guide.md
+/PUBLIC_EXPORT.json
 
 # Machine-specific settings; the public export also excludes tracked copies.
 /.codex/config.toml

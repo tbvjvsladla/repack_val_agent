@@ -1,6 +1,6 @@
 # repack_val_agent
 
-외부 작업 공간의 프로젝트를 코드 에이전트로 개선할 때 사용하는 헌장·스킬·작업 이력 모음입니다. 현재 사례는 Rust 리팩토링과 Harness² 방식의 하네스 개선입니다. 특정 대상 프로젝트의 소스와 실행 환경은 배포하지 않습니다.
+다른 개발언어로 작성된 프로젝트를 Rust로 리팩토링할 때 사용하는 헌장·스킬·문서 작성 가이드 모음입니다. Harness² 방식의 하네스 개선도 지원합니다. 각 작업 공간에서 과업 문서와 포인터 위키를 생성하며 이 작업 이력은 로컬에 보존합니다.
 
 메인 에이전트가 목표와 권한을 정리하고, 외부 워커에게 승인 범위의 구현을 맡긴 뒤 실제 변경과 검사 근거를 확인합니다. Harness² 스킬은 개선 후보·비교·선택·회고의 근거를 관리합니다. 실제 실행과 최종 수용은 호출자가 담당합니다.
 
@@ -12,8 +12,8 @@
 | [.codex/rules/workflow.md](.codex/rules/workflow.md) | 역할·승인 범위·검증·중단과 재개 |
 | [.codex/rules/docs.md](.codex/rules/docs.md) | 의도 → 계획 → 수행 기록 → 검증 문서 연결 |
 | [.agents/skills/](.agents/skills/) | 재사용할 수 있는 스킬과 내부 검사 |
-| [docs/](docs/) | 합의·실패·수정·검사 결과를 보존한 작업 이력 |
-| [__llm-wiki/](__llm-wiki/) | docs를 가리키는 포인터 위키 |
+| [docs/](docs/) | 역할별 doc_gen_guide.md: 문서의 용도·작성법·예시 |
+| [__llm-wiki/](__llm-wiki/) | 로컬 포인터 위키를 만들 계약·용어집 |
 | [PUBLICATION.md](PUBLICATION.md) | 공개 범위와 공개본 생성 절차 |
 
 스킬은 `worker-agent-control`(외부 워커 제어), `rust-repack`(Rust 변환), `harness2`(개선 실험 근거), `code-review`(신규 결함 검토), `pr-review-toolkit`(관점별 검토), `wiki-desk`(프로젝트 문서 조회)로 구성됩니다. 매 과업에서 필요한 도구를 선택합니다.
@@ -32,17 +32,19 @@ cp .agents/skills/worker-agent-control/config.example.json .agents/skills/worker
 
 구체 호출·권한·결과 확인은 [worker-agent-control](.agents/skills/worker-agent-control/SKILL.md), 개선 실험 계약은 [harness2](.agents/skills/harness2/SKILL.md)에서 확인합니다. 읽기 전용 discovery도 실제 CLI 호출을 발생시키므로 대상과 권한을 정한 뒤 실행합니다.
 
-포인터 위키 검사와 스킬 자체검사 예시입니다. 외부 프로젝트는 실행하지 않습니다.
+새 clone에서는 [문서발행규칙의 최초 위키 초기화](.codex/rules/docs.md#wiki-desk-입고)를 한 번 수행합니다. 이후 생성 문서를 입고·검사하고 스킬 자체검사를 실행할 수 있습니다. 외부 프로젝트는 실행하지 않습니다.
 
 ```bash
+node .agents/skills/wiki-desk/src/cli.ts sync
+node .agents/skills/wiki-desk/src/cli.ts sync --apply
 node .agents/skills/wiki-desk/src/cli.ts check
 node --test .agents/skills/harness2/tests/experiment.test.mjs
 ```
 
-## 작업 이력 읽기
+## 문서 작성과 배포 경계
 
-[공개배포 합의](docs/interview/26110510_공개배포_요구합의.md)와 역할별 docs를 함께 읽으면 각 과업의 범위·판정·미완료 항목을 확인할 수 있습니다. 공개 문서의 환경 경로·대상명·세션 식별자는 익명화되었습니다. 날짜·task_id·검사 수치·실패·미실행·판정의 맥락은 유지합니다.
+기본 과업은 interview → plan → devlog → checklist로 연결합니다. 필요할 때 request 문서를 추가합니다. 각 폴더의 가이드에서 역할별 필수 내용을 확인하고, 공통 명명·frontmatter·연결·입고 규칙은 [문서발행규칙](.codex/rules/docs.md)을 따릅니다.
 
-문서가 참조하는 `seed/`, `temp/`, 루트 `tests/`의 원시 자료는 공개하지 않습니다. 해당 경로가 없는 것은 의도된 공개 경계입니다. 기록된 검사 결과는 당시 대상과 조건에 대한 보고이며, 이 저장소만으로 외부 프로젝트의 성능이나 전체 완료를 재현했다고 주장하지 않습니다. 진행 중인 과업의 미완료 상태도 보존합니다.
+`docs/*/doc_gen_guide.md`만 Git으로 배포합니다. 같은 폴더에 생성하는 실제 문서와 위키 카드·index·log·receipt·캐시는 추적하지 않습니다. 생성 문서의 작성·검증·입고와 기존 과업의 재개는 계속 수행합니다. 기존 로컬 이력은 추적 해제 후에도 보존하며, 이 전환이 과거 Git 커밋까지 제거하지는 않습니다.
 
 기본 라이선스는 [MIT](LICENSE)입니다. 외부에서 가져온 자산의 원래 라이선스와 출처는 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 및 각 스킬 디렉터리에 보존합니다.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create a redacted public snapshot without modifying the operating workspace."""
+"""Create a public workflow snapshot with writing guides and no task history."""
 from __future__ import annotations
 
 import argparse
@@ -21,7 +21,7 @@ SKILLS = {
 TOP_FILES = {
     ".gitignore", "AGENTS.md", "README.md", "LICENSE",
     "PUBLICATION.md", "THIRD_PARTY_NOTICES.md", "scripts/prepare_public.py",
-    "__llm-wiki/contract.json", "__llm-wiki/glossary.json",
+    "__llm-wiki/.gitignore", "__llm-wiki/contract.json", "__llm-wiki/glossary.json",
 }
 PRIVATE_PARTS = {
     ".git", "__pycache__", "node_modules", ".cache", ".pytest_cache",
@@ -59,7 +59,7 @@ def allowed(path: str) -> bool:
     if p.parts[:2] == (".codex", "rules"):
         return p.name in {"workflow.md", "docs.md"} and len(p.parts) == 3
     if p.parts[0] == "docs":
-        return p.suffix == ".md"
+        return len(p.parts) == 3 and p.name == "doc_gen_guide.md"
     if len(p.parts) > 3 and p.parts[:2] == (".agents", "skills"):
         return p.parts[2] in SKILLS and (
             p.suffix in {".md", ".mjs", ".ts", ".py", ".json", ".yaml", ".yml", ".toml"}
@@ -140,21 +140,6 @@ def check_text(rel: str, text: str, replacements: dict[str, str]) -> None:
             raise ValueError(f"Unredacted session identifier: {rel}")
 
 
-def wiki(output: Path, *args: str) -> dict:
-    proc = subprocess.run(
-        ["node", ".agents/skills/wiki-desk/src/cli.ts", *args],
-        cwd=output, capture_output=True, text=True,
-    )
-    if proc.returncode:
-        raise ValueError(f"Public wiki {' '.join(args)} failed: {proc.stdout} {proc.stderr}")
-    result = json.loads(proc.stdout)
-    if args[0] == "sync" and any(result.get(k) for k in (
-        "protected", "invalid", "reverify", "orphans_blocked", "needs_review",
-    )):
-        raise ValueError("Public wiki sync requires review")
-    return result
-
-
 def prepare(output: Path) -> dict:
     if output.exists() or output.is_symlink():
         raise ValueError("Output must be a new directory")
@@ -184,27 +169,11 @@ def prepare(output: Path) -> dict:
         prepared[rel] = text
     output.mkdir(parents=True)
     for rel, text in prepared.items():
-        if rel.startswith("__llm-wiki/"):
-            continue
         path = output / rel
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
         path.chmod((ROOT / rel).stat().st_mode & 0o777)
-    contract = output / ".public-wiki-contract.json"
-    contract.write_text(prepared["__llm-wiki/contract.json"], encoding="utf-8")
-    wiki(output, "init", "--contract", str(contract))
-    wiki(output, "init", "--contract", str(contract), "--apply")
-    contract.unlink()
-    (output / "__llm-wiki/glossary.json").write_text(
-        prepared["__llm-wiki/glossary.json"], encoding="utf-8",
-    )
-    wiki(output, "sync")  # Inspect the plan before applying it.
-    wiki(output, "sync", "--apply")
-    wiki(output, "check")
     # The output gets an independent Git history; never copy .git or its metadata.
-    for path in (output / "__llm-wiki" / ".cache").glob("**/*"):
-        if path.is_file():
-            path.unlink()
     current = source_files()
     if current != sources or environment_replacements() != replacements:
         raise ValueError("Sources changed during export; do not publish this output; rerun into a new directory")
@@ -216,13 +185,15 @@ def prepare(output: Path) -> dict:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "license": "MIT (preserved third-party notices also apply)",
         "source_history_included": False,
+        "generated_documents_included": False,
+        "wiki_runtime_included": False,
         "redactions": dict(counts),
         "files": files,
     }
     (output / "PUBLIC_EXPORT.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8",
     )
-    return {"output": str(output), "files": len(files) + 1, "redactions": dict(counts), "wiki": "PASS"}
+    return {"output": str(output), "files": len(files) + 1, "redactions": dict(counts), "wiki_runtime": "EXCLUDED"}
 
 
 def main() -> int:

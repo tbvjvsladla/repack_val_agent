@@ -5,7 +5,13 @@
   "source_roots": [
     "docs"
   ],
-  "excluded_roots": [],
+  "excluded_roots": [
+    "docs/interview/doc_gen_guide.md",
+    "docs/plan/doc_gen_guide.md",
+    "docs/devlog/doc_gen_guide.md",
+    "docs/checklist/doc_gen_guide.md",
+    "docs/request/doc_gen_guide.md"
+  ],
   "source_suffixes": [
     ".md"
   ],

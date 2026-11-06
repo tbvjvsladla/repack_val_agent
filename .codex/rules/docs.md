@@ -1,5 +1,11 @@
 # 문서발행규칙
 
+## 배포 가이드와 로컬 문서
+
+`docs/`는 역할별 폴더를 유지하며 각 폴더의 `doc_gen_guide.md` 하나만 Git으로 배포한다. 가이드는 해당 문서의 역할·작성 시점·필수 내용·예시를 설명하고, 공통 명명·메타데이터·연결 규칙은 이 헌장을 참조한다. 새 역할 폴더를 도입하면 같은 이름의 가이드를 둔다. 이 가이드는 과업 문서가 아니므로 과업 frontmatter·시각 기반 파일명을 요구하지 않는다.
+
+실제 과업 문서는 가이드와 같은 역할 폴더에 생성·갱신하고 Git 추적·공개본에서 제외한다. 문서 작성·검증·입고와 같은 과업의 재개 의무는 유지한다. 추적 제외를 문서 삭제나 과거 결정 폐기의 근거로 사용하지 않는다. 기존에 추적한 생성 문서는 로컬 파일을 보존한 채 index에서만 제거한다. `.gitignore`는 과거 커밋을 제거하지 않으며 과거 이력 재작성·원격 발행은 별도 범위다.
+
 ## 역할별 배치와 연결
 
 새 개발·변경 과업에는 다음 네 문서를 둔다.
@@ -10,6 +16,8 @@
 | `docs/plan/` | 수행 계획 | 순서·영향·완료 기준·검증·복구/재개 |
 | `docs/devlog/` | 수행 기록 | 실제 변경·결정·시도·현재 상태·다음 행동 |
 | `docs/checklist/` | 검증과 종료 | 기대 조건·관측·상태·근거·독립 검증·수용 |
+
+추가 행동이 필요할 때는 `docs/request/`에 선택 문서를 작성할 수 있다. 자료·작업 대상·우선순위·제약·필요한 결정을 적고 해당 과업과 연결한다. 요청서가 기본 네 문서나 사용자 승인을 대체하지 않는다.
 
 네 문서를 역할별 폴더에 배치하고 공통 `task_id`로 연결한다. `docs/<task_id>/` 구조로 바꾸지 않는다. 과업 ID는 최초 부여 후 유지하는 고유 문자열이다. 예: `wiki-desk-bootstrap-261103164515`.
 
@@ -45,7 +53,19 @@ checklist에는 자체검사·독립 검토와 실제 통합·기동·시나리�
 
 스킬 지침은 `.agents/skills/wiki-desk/SKILL.md`, 프로젝트 계약은 `__llm-wiki/contract.json`이다. CLI의 작업 디렉터리는 이 프로젝트 루트다. 다른 디렉터리에서는 CLI 절대 경로와 `--root <프로젝트 루트>`를 함께 쓴다.
 
-wiki-desk의 원문 범위는 `docs/` 하나다. `seed/`, 헌장·스킬 자체, 임시 검증 코드는 입고하지 않는다. 문서 종류는 역할별 경로로 분류하고 문서의 실제 승인 범위는 원문으로 판단한다.
+wiki-desk의 원문 범위는 `docs/` 하나다. 역할별 `doc_gen_guide.md`는 과업 근거가 아니므로 계약의 `excluded_roots`에 각 경로를 등록한다. 새 역할 폴더의 가이드를 추가하면 이 제외 목록도 갱신한다. `seed/`, 헌장·스킬 자체, 임시 검증 코드는 입고하지 않는다. 문서 종류는 역할별 경로로 분류하고 문서의 실제 승인 범위는 원문으로 판단한다.
+
+배포본은 위키 설정(`contract.json`·`glossary.json`·`.gitignore`)만 포함한다. 카드·index·log·receipt·archive·캐시는 각 작업 공간에서 생성하고 로컬에 보존한다. 새 clone에는 생성물 소유 기록인 receipt가 없으므로 최초 입고 전에 다음 초기화를 한 번 수행한다. 기존 receipt·index·log·카드가 있는 작업 공간에는 이 초기화를 수행하거나 덮어쓰지 않는다.
+
+기존 설정 폴더 때문에 `init`은 직접 실행할 수 없다. Bash에서 새 임시 작업 공간에 정식 `init` 계획·적용을 실행하고, 생성된 빈 위키의 index·log·receipt만 가져온다. 추적 중인 계약·용어집과 기존 문서는 수정하지 않는다.
+
+```bash
+mkdir -p temp
+wiki_bootstrap=$(mktemp -d temp/wiki-bootstrap.XXXXXX)
+node .agents/skills/wiki-desk/src/cli.ts --root "$wiki_bootstrap" init --contract __llm-wiki/contract.json
+node .agents/skills/wiki-desk/src/cli.ts --root "$wiki_bootstrap" init --contract __llm-wiki/contract.json --apply
+cp "$wiki_bootstrap"/__llm-wiki/{index.md,log.md,receipt.json} __llm-wiki/
+```
 
 문서를 발행하거나 갱신한 같은 작업 안에서 그 작업의 문서 전체를 입고한다.
 
@@ -59,4 +79,6 @@ node .agents/skills/wiki-desk/src/cli.ts check
 
 ## Git 분류
 
-헌장·스킬·과업 문서·위키 카드와 `contract.json`·`glossary.json`·`receipt.json`은 추적한다. 루트 `/seed/`, `/temp/`, `/tests/`, 검색 캐시와 우로보로스 실행 데이터는 제외한다. 루트 `/tests/` 제외를 설치 스킬 내부 회귀 테스트에 적용하지 않는다.
+헌장·설치 스킬과 내부 회귀 테스트, 역할별 `docs/*/doc_gen_guide.md`, 위키 `contract.json`·`glossary.json`·`.gitignore`는 추적한다. 실제 과업 문서와 위키 카드·index·log·receipt·archive·캐시, 공개본 생성 manifest(`PUBLIC_EXPORT.json`)는 로컬 생성물로 제외한다. 원문 없이 해당 문서의 위키 카드만 배포하지 않는다.
+
+루트 `/seed/`, `/temp/`, `/tests/`와 우로보로스 실행 데이터도 제외한다. 루트 `/tests/` 제외를 설치 스킬 내부 회귀 테스트에 적용하지 않는다. 추적 해제는 로컬 파일 보존을 확인한 뒤 해당 경로에만 `git rm --cached`로 적용한다.
