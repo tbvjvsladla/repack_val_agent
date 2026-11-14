@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="900" viewBox="0 0 1100 900" role="img" aria-labelledby="gate-title gate-desc" font-family="Pretendard, sans-serif" font-size="20" fill="#141413">
+  <title id="gate-title">2계층 캠페인: 검증 묶음과 gate</title>
+  <desc id="gate-desc">1계층은 docs의 네 문서 interview, plan, devlog, checklist다. plan이 범위·검사·검토 표시·상한을 정하고 checklist가 통합 검증과 수용을 맡는다. 2계층은 campaigns의 캠페인 인스턴스다. cell은 준비와 변경 두 단계만 밟고 검증 묶음에 속한다. 묶음의 구성원이 변경을 모두 끝내면 gate가 묶음의 검사를 한 번 돌린다. gate는 새 입력이면 실행하고, 같은 입력으로 통과한 검사는 재사용하고, 넓은 검사가 통과하면 좁은 검사를 덮임으로 닫고, 같은 입력으로 실패한 검사의 재실행은 거절한다. 실행할 때마다 영수증을 남긴다. 한 cell이 멈추면 그 묶음만 멈춘다. 모든 묶음이 끝나면 마지막 전체 검증이 gate의 결과를 다시 쓰지 않고 한 번 돌아 묶음 사이의 상호작용을 확인하며, 그 결과가 checklist의 통합 검증이 된다. progress-monitor 스킬은 이 흐름의 운영 규칙과 실행기다. 단계마다 새 수행자에게 주소만 넘기고, 종료 훅으로 남은 일을 알리며 정체하면 한 번 다시 시도한 뒤 우회하고, cell의 추가·취소·묶음 재편을 기록하며 사람의 결정이 필요한 일은 넘기고 다른 일을 계속한다. 영수증의 키는 명령·기준·환경·입력의 Git 객체 ID다. 재사용과 덮임은 실행하지 않은 것이며 근거가 된 영수증을 가리킨다. 실행기는 수용을 판정하지 않고, 덮음 선언이 옳은지는 선언한 사람의 책임이다. 인스턴스·영수증·로그는 로컬에 보존한다.</desc>
+  <defs>
+    <marker id="gate-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M 1 1 L 9 5 L 1 9 Z" fill="#1B365D"/></marker>
+  </defs>
+  <rect width="1100" height="900" fill="#f5f4ed"/>
+  <text x="44" y="54" font-size="30" font-weight="700" fill="#1B365D">2계층 캠페인: 검증 묶음과 gate</text>
+  <text x="44" y="100" font-size="24">cell은 준비와 변경만 밟고, 검사는 묶음의 gate에서 한 번 돈다</text>
+  <g fill="#faf9f5" stroke="#e8e6dc" stroke-width="2">
+    <rect x="44" y="130" width="1012" height="96"/>
+    <rect x="64" y="322" width="330" height="130"/>
+    <rect x="64" y="470" width="330" height="130"/>
+    <rect x="824" y="322" width="212" height="278"/>
+    <rect x="44" y="650" width="1012" height="190"/>
+  </g>
+  <rect x="44" y="262" width="1012" height="360" fill="none" stroke="#504e49" stroke-width="1.5"/>
+  <rect x="444" y="322" width="330" height="278" fill="#faf9f5" stroke="#1B365D" stroke-width="2"/>
+  <path d="M 64 706 H 1036" fill="none" stroke="#e8e6dc" stroke-width="2"/>
+  <g fill="none" stroke="#1B365D" stroke-width="2.5" marker-end="url(#gate-arrow)">
+    <path d="M 394 387 H 444"/>
+    <path d="M 394 535 H 444"/>
+    <path d="M 774 461 H 824"/>
+    <path d="M 930 322 V 226"/>
+  </g>
+  <text x="64" y="170" font-size="26" font-weight="700" fill="#1B365D">1계층 docs/</text>
+  <text x="250" y="170" font-size="22">interview → plan → devlog → checklist</text>
+  <text x="64" y="206" fill="#504e49">plan이 범위 · 검사 · 검토 표시 · 상한을 정한다</text>
+  <text x="1036" y="206" text-anchor="end" fill="#504e49">checklist: 통합 검증과 수용</text>
+  <text x="64" y="300" font-size="26" font-weight="700" fill="#1B365D">2계층 campaigns/</text>
+  <text x="900" y="300" text-anchor="end" fill="#504e49">상태와 사건은 파일에 둔다</text>
+  <text x="80" y="356" font-size="22" font-weight="700" fill="#1B365D">검증 묶음 A</text>
+  <text x="80" y="394">cell 1 · 준비 → 변경</text>
+  <text x="80" y="428">cell 2 · 준비 → 변경</text>
+  <text x="80" y="504" font-size="22" font-weight="700" fill="#1B365D">검증 묶음 B</text>
+  <text x="80" y="542">cell 3 · 준비 → 변경</text>
+  <text x="80" y="578" font-size="18" fill="#504e49">한 cell이 멈추면 그 묶음만 멈춘다</text>
+  <text x="460" y="358" font-size="26" font-weight="700" fill="#1B365D">gate</text>
+  <text x="544" y="358" fill="#504e49">묶음의 검사를 한 번</text>
+  <text x="460" y="404"><tspan font-weight="700">실행</tspan> — 새 입력이면 돌린다</text>
+  <text x="460" y="444"><tspan font-weight="700">재사용</tspan> — 같은 입력의 통과</text>
+  <text x="460" y="484"><tspan font-weight="700">덮임</tspan> — 넓은 검사의 통과</text>
+  <text x="460" y="524"><tspan font-weight="700">거절</tspan> — 같은 입력의 실패</text>
+  <text x="460" y="574" font-size="18" fill="#504e49">실행할 때마다 영수증을 남긴다</text>
+  <text x="840" y="358" font-size="22" font-weight="700" fill="#1B365D"><tspan x="840" dy="0">마지막</tspan><tspan x="840" dy="30">전체 검증</tspan></text>
+  <text x="840" y="436"><tspan x="840" dy="0">gate의 결과를</tspan><tspan x="840" dy="32">다시 쓰지 않고</tspan><tspan x="840" dy="32">한 번 돌린다</tspan></text>
+  <text x="840" y="552" font-size="18" fill="#504e49"><tspan x="840" dy="0">묶음 사이의</tspan><tspan x="840" dy="26">상호작용을 확인</tspan></text>
+  <text x="64" y="688" font-size="26" font-weight="700" fill="#1B365D">progress-monitor</text>
+  <text x="1036" y="688" text-anchor="end" fill="#504e49">캠페인을 멈추지 않고 이어 가는 운영 규칙과 실행기</text>
+  <text x="64" y="744" font-size="22" font-weight="700" fill="#1B365D">단계 위임</text>
+  <text x="64" y="780">단계마다 새 수행자</text>
+  <text x="64" y="812">주소만 넘기고 결과만 받는다</text>
+  <text x="400" y="744" font-size="22" font-weight="700" fill="#1B365D">정체 감시</text>
+  <text x="400" y="780">종료 훅이 남은 일을 알린다</text>
+  <text x="400" y="812">한 번 다시 시도한 뒤 우회</text>
+  <text x="736" y="744" font-size="22" font-weight="700" fill="#1B365D">방향 조정</text>
+  <text x="736" y="780">cell 추가 · 취소 · 재편을 기록</text>
+  <text x="736" y="812">결정은 사람에게 넘기고 계속</text>
+  <text x="44" y="876" fill="#504e49">영수증의 키: 명령 · 기준 · 환경 · 입력의 Git 객체 ID</text>
+  <text x="1056" y="876" text-anchor="end" fill="#504e49">인스턴스 · 영수증 · 로그: 로컬 보존</text>
+</svg>

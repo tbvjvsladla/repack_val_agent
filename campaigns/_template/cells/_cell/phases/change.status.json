@@ -1,0 +1,17 @@
+{
+  "schema_version": 2,
+  "cell": "<<FILL>>",
+  "phase": "change",
+  "state": "pending",
+  "attempt": 1,
+  "started": null,
+  "ended": null,
+  "proof": {
+    "check": "<<FILL>>",
+    "expect": "<<FILL>>",
+    "ok": false,
+    "source": null
+  },
+  "by": null,
+  "_note": "proof.check는 이 단계의 결과를 직접 관측하는 가벼운 명령이고 proof.expect는 성공했을 때만 나오는 표식이다. 묶음의 검사를 여기서 미리 돌리지 않는다. state, started, ended, attempt, proof.ok, proof.source, by는 실행기가 쓴다. by가 없으면 done이 될 수 없다. 실패해도 이 파일을 쓴다."
+}

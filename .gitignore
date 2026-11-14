@@ -2,6 +2,8 @@
 /temp/
 /tests/
 /.ouroboros/
+/specs/
+/.serena/
 # Wiki configuration is reusable; source-dependent runtime data stays local.
 /__llm-wiki/*
 !/__llm-wiki/.gitignore
@@ -14,9 +16,15 @@
 !/docs/*/doc_gen_guide.md
 /PUBLIC_EXPORT.json
 
+# Campaign skeleton is tracked; instances and the ACTIVE pointer stay local.
+/campaigns/*
+!/campaigns/README.md
+!/campaigns/_template/
+
 # Machine-specific settings; the public export also excludes tracked copies.
 /.codex/config.toml
-/.agents/skills/worker-agent-control/config.json
+/.codex/hooks.json
+/skills/worker-agent-control/config.json
 
 # Credentials and local overrides at any depth.
 .env

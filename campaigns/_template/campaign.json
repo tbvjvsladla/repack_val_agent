@@ -1,0 +1,89 @@
+{
+  "_howto": [
+    "캠페인 선언이다. 내용은 JSON이고 주석을 쓰지 않는다.",
+    "`_`로 시작하는 키는 안내문이며 검사하지 않는다.",
+    "자리표시를 모두 채운다. 인스턴스에 자리표시가 남으면 lint가 실패한다.",
+    "phases는 cell이 밟는 단계다. 검증은 단계가 아니라 묶음(groups)의 gate에서 한다.",
+    "checks는 gate와 마지막 전체 검증에서 돌릴 검사의 선언이다. inputs에는 결과를 바꿀 수 있는 경로를 넓게 적는다.",
+    "groups는 함께 바뀌고 같은 검사로 확인되는 cell의 묶음이다. cell의 group이 구성원을 정한다.",
+    "cells의 review는 none, user-request, high-impact, judgment 중 하나다. plan에서 정한 대로만 적는다.",
+    "cells의 origin, parent, state와 수행 중의 cell 추가·취소·묶음 재편은 실행기가 쓴다.",
+    "budgets는 이 캠페인의 상한이다. plan에서 승인받은 값으로 적는다.",
+    "briefing은 캠페인을 열 때 사용자에게 물어 실행기의 open 인자로 준다.",
+    "review.round_cap은 새 맥락 검토의 회차 상한이다. 3보다 크게 적으려면 plan에 사용자 승인을 남긴다.",
+    "실행: python3 skills/progress-monitor/scripts/pm.py status",
+    "검사: python3 scripts/check_campaign.py campaigns/<camp-id>"
+  ],
+  "schema_version": 2,
+  "id": "<<FILL>>",
+  "goal": "<<FILL>>",
+  "plan_ref": "<<FILL>>",
+  "checklist_ref": "<<FILL>>",
+  "declared": "<<FILL>>",
+  "target": {
+    "root": "<<FILL>>",
+    "env_probe": []
+  },
+  "phases": [
+    "prepare",
+    "change"
+  ],
+  "review": {
+    "round_cap": 3
+  },
+  "budgets": {
+    "stall_stops": 2,
+    "stop_block_cap": 6,
+    "stall_retries": 1,
+    "phase_minutes": 90,
+    "auto_cells": 5,
+    "forced_reruns_per_check": 1,
+    "forced_reruns_total": 3,
+    "exec_retries": 2,
+    "check_timeout_s": 1800,
+    "explore_candidates": 3,
+    "explore_rounds": 6
+  },
+  "briefing": {
+    "on_phase": true,
+    "every_hours": null
+  },
+  "checks": [
+    {
+      "id": "<<FILL>>",
+      "cmd": "<<FILL>>",
+      "cwd": ".",
+      "expect": "<<FILL>>",
+      "inputs": [
+        "<<FILL>>"
+      ],
+      "env": [],
+      "covers": []
+    }
+  ],
+  "groups": [
+    {
+      "group": "<<FILL>>",
+      "checks": [
+        "<<FILL>>"
+      ]
+    }
+  ],
+  "final": {
+    "checks": [
+      "<<FILL>>"
+    ]
+  },
+  "cells": [
+    {
+      "cell": "<<FILL>>",
+      "goal": "<<FILL>>",
+      "group": "<<FILL>>",
+      "needs": [],
+      "review": "none",
+      "origin": "plan",
+      "parent": null,
+      "state": "open"
+    }
+  ]
+}

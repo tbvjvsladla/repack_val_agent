@@ -2,18 +2,20 @@
 
 | 구분 | 처리 |
 |---|---|
-| AGENTS.md, 두 헌장, 설치된 여섯 스킬과 내부 테스트 | 공개. 기존 라이선스·출처 보존 |
+| AGENTS.md·CLAUDE.md, 세 헌장(rules/), 일곱 스킬(skills/)과 내부 테스트, 하네스 어댑터 링크·`.claude/settings.json` | 공개. 기존 라이선스·출처 보존 |
 | docs의 역할별 doc_gen_guide.md | 문서의 용도·작성 방식·예시만 공개 |
 | docs에 생성된 과업 문서 | 로컬 보존, Git 추적·공개본 제외 |
+| campaigns의 README.md와 _template, scripts/check_campaign.py | 캠페인의 규약·틀·형식 검사를 공개. 운영 규칙과 실행기는 skills/progress-monitor에 있음 |
+| campaigns의 인스턴스와 ACTIVE | 로컬 보존, Git 추적·공개본 제외 |
 | 위키 contract.json·glossary.json·.gitignore | 재사용할 설정으로 공개 |
 | 위키 카드·index·log·receipt·archive·캐시 | 로컬 보존, Git 추적·공개본 제외 |
 | PUBLIC_EXPORT.json | 공개 후보마다 새로 생성, 원본 Git 추적 제외 |
 | 실제 외부 프로젝트 소스, seed, temp, 루트 tests | 제외 |
-| 개인 Codex 설정, 실제 worker config, 인증·비밀값 | 제외. 워커 설정은 예시만 제공 |
+| 개인 Codex 설정, 하네스별 로컬 설정과 로컬 훅, 실제 worker config, 인증·비밀값 | 제외. 워커 설정과 훅 설치는 예시만 제공 |
 | 원시 stdout/stderr, 모델 응답·실행 상태, 캐시·Ouroboros 데이터 | 제외 |
 | 원본 .git와 과거 커밋·작성자 정보 | 제외. 공개본에서 새 이력 시작 |
 
-루트 `/seed/`는 항상 Git 추적과 공개본에서 제외합니다. `.agents/skills/*/tests/`는 설치 스킬의 재현 가능한 내부 검사이므로 포함합니다. 루트 `/tests/`와 구분합니다.
+루트 `/seed/`는 항상 Git 추적과 공개본에서 제외합니다. `skills/*/tests/`는 설치 스킬의 재현 가능한 내부 검사이므로 포함합니다. 루트 `/tests/`와 구분합니다.
 
 ## 원본 작업 공간에서 공개본 만들기
 
@@ -43,4 +45,4 @@ git push -u origin main
 
 후속 발행도 새 후보를 만들어 확인합니다. 공개 저장소에 이미 이력이 있으면 그 공개 저장소의 clone에서 검토된 파일 변경을 반영합니다. 기존 추적 생성물은 로컬 보존을 확인하고 해당 경로만 `git rm --cached`로 제외합니다. 새 `PUBLIC_EXPORT.json`도 배포 검사 산출물이므로 일반 Git 커밋에는 포함하지 않습니다. 운영 원본의 `.git`을 가져오거나 기존 원격을 force push하지 않습니다.
 
-이 전환은 현재 트리와 후속 배포의 정책입니다. 이전 공개 커밋에 있던 문서까지 제거하는 이력 재작성은 수행하지 않습니다. 새 clone에서 로컬 문서를 작성하고 위키를 사용하려면 [문서발행규칙의 초기화·입고 절차](.codex/rules/docs.md#wiki-desk-입고)를 따릅니다.
+이 전환은 현재 트리와 후속 배포의 정책입니다. 이전 공개 커밋에 있던 문서까지 제거하는 이력 재작성은 수행하지 않습니다. 새 clone에서 로컬 문서를 작성하고 위키를 사용하려면 [문서발행규칙의 초기화·입고 절차](rules/docs.md#wiki-desk-입고)를 따릅니다.

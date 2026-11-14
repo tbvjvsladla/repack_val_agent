@@ -10,9 +10,15 @@ repack_val_agent는 코드베이스·스킬·MCP·플러그인 등의 **개선�
 
 ![사용자의 목표를 오케스트레이터가 계획과 작업으로 나누고, worker-agent-control을 통해 별도 워커에 전달합니다. 워커는 외부 프로젝트 또는 repack_target의 실제 대상 루트에서 개선하고 변경·검사 근거를 반환합니다.](assets/orchestration.svg)
 
-여기서 분리하는 것은 **에이전트의 실행 맥락과 책임**입니다. 같은 종류의 CLI를 사용하는 별도 세션도 이 협업을 구성할 수 있습니다. 구체적인 역할 배치·위임·독립 검증 조건은 [작업수행규칙](.codex/rules/workflow.md)과 각 과업의 계획에 둡니다.
+여기서 분리하는 것은 **에이전트의 실행 맥락과 책임**입니다. 같은 종류의 CLI를 사용하는 별도 세션도 이 협업을 구성할 수 있습니다. 구체적인 역할 배치·위임·독립 검증 조건은 [작업수행규칙](rules/workflow.md)과 각 과업의 계획에 둡니다.
 
-워커 연결의 기반은 [worker-agent-control](.agents/skills/worker-agent-control/SKILL.md)입니다. [hermes-subagent-control-plane](https://github.com/tbvjvsladla/hermes-subagent-control-plane)을 기초로 이 프로젝트의 Codex 지휘 환경에 맞춰 적용했습니다. 워커별 작업 경로·실행 CLI·진입 지침을 구분하고, 연결 확인과 본작업 결과를 따로 검증합니다. 계보와 적용 차이는 [적용 기록](.agents/skills/worker-agent-control/references/adaptation.md)에 있습니다.
+워커 연결의 기반은 [worker-agent-control](skills/worker-agent-control/SKILL.md)입니다. [hermes-subagent-control-plane](https://github.com/tbvjvsladla/hermes-subagent-control-plane)을 기초로 이 프로젝트의 지휘 환경(Codex 또는 Claude Code 오케스트레이터)에 맞춰 적용했습니다. 워커별 작업 경로·실행 CLI·진입 지침을 구분하고, 연결 확인과 본작업 결과를 따로 검증합니다. 계보와 적용 차이는 [적용 기록](skills/worker-agent-control/references/adaptation.md)에 있습니다.
+
+### 어떤 이너 하네스로도 같은 규칙
+
+이 저장소가 배포하는 것은 사람이 설계한 **아우터 하네스**(헌장·스킬·과업 문서 체계)입니다. 실제로 파일을 읽고 명령을 실행하는 **이너 하네스**(Codex, Claude Code)는 교체할 수 있는 실행 도구입니다. 정본은 하네스 중립 경로(`rules/`, `skills/`, `AGENTS.md`)에 두고, 각 하네스는 얇은 어댑터(`CLAUDE.md`, `.agents/skills`·`.claude/skills` 심볼릭 링크, 하네스별 설정)로 연결됩니다. 오케스트레이터도 워커도 어느 하네스든 맡을 수 있습니다. 하네스를 바꿔도 과업은 초기화되지 않으며, 과업 문서로 인계됩니다. 실행자는 항상 실제 값으로 기록하고, 대체 실행의 성공을 요청한 실행자의 성공으로 세지 않습니다. 자세한 내용은 [하네스규칙](rules/harness.md)을 참고하세요.
+
+![가운데의 아우터 하네스(AGENTS.md, rules의 세 헌장, skills, docs의 작성 가이드, campaigns의 캠페인 규약)에 Codex와 Claude Code가 얇은 어댑터로 연결됩니다. 하네스를 바꿔도 과업은 과업 문서와 캠페인 인스턴스로 이어집니다.](assets/harness-adapters.svg)
 
 ### 개선 대상은 두 곳에 둘 수 있습니다
 
@@ -27,16 +33,17 @@ repack_val_agent는 코드베이스·스킬·MCP·플러그인 등의 **개선�
 
 개선 목표는 과업마다 다릅니다. 어떤 과업에는 Rust 변환이, 다른 과업에는 결함 검토나 LLM 답변 평가가 필요합니다. repack_val_agent는 **개선 방향을 다루는 도구**, **선택 가능한 수단 도구**, **작업을 받치는 기반 도구**를 구분해 조합합니다.
 
-기반은 **`wiki-desk`와 `worker-agent-control` 두 도구**로 유지하고, 수단 도구는 과업에 맞게 교체·추가합니다. 도구 간 구체적인 연결은 메인 오케스트레이터가 맡습니다.
+기반은 **`wiki-desk`와 `worker-agent-control` 두 도구**로 유지하고, 수단 도구는 과업에 맞게 교체·추가합니다. 오래 걸리는 과업에는 캠페인 운영 도구인 `progress-monitor`가 더해집니다([아래](#오래-걸리는-개선은-캠페인으로-나눠-이어-갑니다)). 도구 간 구체적인 연결은 메인 오케스트레이터가 맡습니다.
 
-![harness2가 개선 후보와 비교·회고를 지원하고, 메인이 독립적인 수단 도구를 선택합니다. worker-agent-control과 wiki-desk는 실행 연결과 문서 근거를 받치며, 두 헌장이 작업과 문서의 공통 규칙을 정합니다.](assets/skill-layers.svg)
+![harness2가 개선 후보와 비교·회고를 지원하고, 메인이 독립적인 수단 도구를 선택합니다. worker-agent-control과 wiki-desk는 실행 연결과 문서 근거를 받치며, 세 헌장이 작업·문서·하네스의 공통 규칙을 정합니다.](assets/skill-layers.svg)
 
 | 구분 | 도구 | 책임 |
 |---|---|---|
-| **개선 방향** | [harness2](.agents/skills/harness2/SKILL.md) | 무엇을 바꿔 볼지 제안하고, 후보의 탐색·대조·조합·선택·회고를 근거와 연결합니다. |
+| **개선 방향** | [harness2](skills/harness2/SKILL.md) | 무엇을 바꿔 볼지 제안하고, 후보의 탐색·대조·조합·선택·회고를 근거와 연결합니다. |
 | **선택 가능한 수단** | `code-review` · `rust-repack` · `deepeval-pack` · `pr-review-toolkit` 등 | 이번 개선에 필요한 변환·검토·평가를 각자의 책임 범위에서 수행합니다. |
-| **기반** | [worker-agent-control](.agents/skills/worker-agent-control/SKILL.md) | 대상 워커를 연결하고, 요청·실행·결과 인수를 다룹니다. |
-| **기반** | [wiki-desk](.agents/skills/wiki-desk/SKILL.md) | 프로젝트 문서의 원문 근거를 찾고, 새 기록을 포인터 위키에 입고합니다. |
+| **기반** | [worker-agent-control](skills/worker-agent-control/SKILL.md) | 대상 워커를 연결하고, 요청·실행·결과 인수를 다룹니다. |
+| **기반** | [wiki-desk](skills/wiki-desk/SKILL.md) | 프로젝트 문서의 원문 근거를 찾고, 새 기록을 포인터 위키에 입고합니다. |
+| **캠페인 운영** | [progress-monitor](skills/progress-monitor/SKILL.md) | 오래 걸리는 과업에서 검증 묶음의 gate와 영수증, 단계 위임, 정체 감시, 방향 조정을 다룹니다. |
 
 ### 수단 도구는 독립적으로 기동하고, 과업에서 조합합니다
 
@@ -44,10 +51,10 @@ repack_val_agent는 코드베이스·스킬·MCP·플러그인 등의 **개선�
 
 | 수단 도구 | 선택할 때 | 반환하는 책임 범위 |
 |---|---|---|
-| [code-review](.agents/skills/code-review/SKILL.md) | PR이나 로컬 변경의 신규 결함을 찾을 때 | 근거를 재검증해 엄선한 결함·규칙 위반 |
-| [rust-repack](.agents/skills/rust-repack/SKILL.md) | 다른 언어의 로직 또는 기존 Rust를 개선할 때 | 외부 동작을 보존하는 Rust 변환·리팩토링과 자체검사 |
+| [code-review](skills/code-review/SKILL.md) | PR이나 로컬 변경의 신규 결함을 찾을 때 | 근거를 재검증해 엄선한 결함·규칙 위반 |
+| [rust-repack](skills/rust-repack/SKILL.md) | 다른 언어의 로직 또는 기존 Rust를 개선할 때 | 외부 동작을 보존하는 Rust 변환·리팩토링과 자체검사 |
 | `deepeval-pack` (별도 설치) | 답변·검색 문맥·기대 답변을 평가할 때 | 설정한 Judge·메트릭에 따른 케이스별 평가 결과 |
-| [pr-review-toolkit](.agents/skills/pr-review-toolkit/SKILL.md) | 테스트·주석·오류 처리·타입·품질 등 여러 관점을 검토할 때 | 선택한 관점의 검토 결과 |
+| [pr-review-toolkit](skills/pr-review-toolkit/SKILL.md) | 테스트·주석·오류 처리·타입·품질 등 여러 관점을 검토할 때 | 선택한 관점의 검토 결과 |
 
 예를 들어 동작 보존이 목표인 Rust 전환 과업에서는 `rust-repack`의 결과를 별도 검토에 넘길 수 있고, 검색·답변 품질 과업에서는 `deepeval-pack`을 평가 수단으로 선택할 수 있습니다. 구체적인 조합은 과업에서 정합니다. **한 도구의 완료는 그 도구가 맡은 범위의 완료**이며, 전체 개선의 완료는 메인이 합의한 기준과 실제 근거로 확인합니다.
 
@@ -55,9 +62,9 @@ repack_val_agent는 코드베이스·스킬·MCP·플러그인 등의 **개선�
 
 ### Harness²로 개선의 방향과 비교 근거를 다룹니다
 
-[harness2](.agents/skills/harness2/SKILL.md)는 [Google Research의 Harness²](https://github.com/google-research/harness2)의 재귀적 하네스 개선 방법을 이 작업 공간에 내재화한 **독립 구현**입니다. 승인된 목표·변경 범위·필수 검사·기준선·실험 예산 안에서 후보를 제안하고, 실제 실행과 평가 근거를 비교해 선택·보류·회고를 지원합니다.
+[harness2](skills/harness2/SKILL.md)는 [Google Research의 Harness²](https://github.com/google-research/harness2)의 재귀적 하네스 개선 방법을 이 작업 공간에 내재화한 **독립 구현**입니다. 승인된 목표·변경 범위·필수 검사·기준선·실험 예산 안에서 후보를 제안하고, 실제 실행과 평가 근거를 비교해 선택·보류·회고를 지원합니다.
 
-메인은 이 근거를 바탕으로 어떤 수단을 사용하고 다음에 무엇을 시도할지 정합니다. 실제 실행은 연결된 워커·도구가, 최종 수용은 과업 책임자가 담당합니다. 구현 범위와 연구 원형의 차이는 [출처·적용 범위](.agents/skills/harness2/references/provenance.md)에 정리되어 있습니다.
+메인은 이 근거를 바탕으로 어떤 수단을 사용하고 다음에 무엇을 시도할지 정합니다. 실제 실행은 연결된 워커·도구가, 최종 수용은 과업 책임자가 담당합니다. 구현 범위와 연구 원형의 차이는 [출처·적용 범위](skills/harness2/references/provenance.md)에 정리되어 있습니다.
 
 ## 이번 개선을 다음 개선의 출발점으로
 
@@ -67,27 +74,60 @@ repack_val_agent는 코드베이스·스킬·MCP·플러그인 등의 **개선�
 
 성공뿐 아니라 실패한 접근, 비교 조건, 보류 이유와 적용 한계도 남깁니다. 다음 과업은 이 기록의 원문을 조회해 출발점으로 삼고, 현재 대상·환경·기준에 유효한 근거인지 확인합니다. 이것이 이 프로젝트에서 **루프 엔지니어링의 자산**을 쌓는 방식입니다.
 
-이 흐름을 받치는 헌장은 두 개입니다.
+이 흐름을 받치는 헌장은 세 개입니다.
 
 | 헌장 | 정하는 내용 |
 |---|---|
-| [작업수행규칙](.codex/rules/workflow.md) | 목표·권한·역할·도구 독립성·검증·수용·중단과 재개 |
-| [문서발행규칙](.codex/rules/docs.md) | 역할별 문서·task_id·연결·명명·갱신·위키 입고 |
+| [작업수행규칙](rules/workflow.md) | 목표·권한·역할·도구 독립성·검증·수용·중단과 재개 |
+| [문서발행규칙](rules/docs.md) | 역할별 문서·task_id·연결·명명·갱신·위키 입고 |
+| [하네스규칙](rules/harness.md) | 아우터/이너 하네스·어댑터·역할 판정·실행자 기록·전환과 인계·권한 |
 
-과업 기록은 **interview → plan → devlog → checklist**로 연결합니다. 의도와 합의, 수행 계획, 실제 실행, 검증 결과를 같은 과업의 기록으로 이어 가며, 필요하면 `request` 문서를 추가합니다. [wiki-desk](.agents/skills/wiki-desk/SKILL.md)는 이 문서의 위치와 원문 구간을 찾아 줍니다. 검색 순위나 카드 메타데이터를 승인·정답의 대체물로 사용하지 않습니다.
+과업 기록은 **interview → plan → devlog → checklist**로 연결합니다. 의도와 합의, 수행 계획, 실제 실행, 검증 결과를 같은 과업의 기록으로 이어 가며, 필요하면 `request` 문서를 추가합니다. [wiki-desk](skills/wiki-desk/SKILL.md)는 이 문서의 위치와 원문 구간을 찾아 줍니다. 검색 순위나 카드 메타데이터를 승인·정답의 대체물로 사용하지 않습니다.
 
 헌장·스킬·역할별 작성 가이드는 재사용할 수 있도록 Git으로 배포합니다. 실제 과업 문서와 생성된 위키 카드·index·log·receipt·캐시는 각 작업 공간에 로컬로 보존합니다.
+
+## 오래 걸리는 개선은 캠페인으로 나눠 이어 갑니다
+
+대상 프로젝트의 개선은 며칠씩 이어지기도 합니다. 그래서 과업 기록을 두 계층으로 나눕니다. **1계층**은 `docs/`의 네 문서로 의도·계획·이력·통합 검증을 담습니다. **2계층**은 [campaigns/](campaigns/README.md)의 캠페인 인스턴스로, 항목(cell)의 상태와 사건을 파일에 둡니다. 새 세션이나 다른 하네스는 대화 기록이 아니라 이 파일에서 이어 갑니다.
+
+![1계층 docs의 네 문서가 범위·검사·상한과 수용을 맡고, 2계층 캠페인에서는 cell이 준비와 변경만 밟습니다. 검증 묶음의 gate가 검사를 한 번 돌려 실행·재사용·덮임·거절로 가르고, 마지막 전체 검증이 한 번 돌아 checklist로 이어집니다. progress-monitor가 단계 위임·정체 감시·방향 조정을 맡습니다.](assets/campaign-gate.svg)
+
+검증은 항목마다 돌리지 않습니다. 함께 바뀌고 같은 검사로 확인되는 항목을 **검증 묶음**으로 모으고, 묶음의 변경이 모두 끝난 뒤 gate에서 한 번 돌립니다. 실행한 검사는 명령·기준·환경·입력의 Git 객체 ID를 담은 **영수증**을 남기고, gate는 그 영수증으로 다음을 가릅니다.
+
+| gate의 판단 | 조건 | 처리 |
+|---|---|---|
+| **실행** | 새 입력이거나, 입력이 커밋되지 않았다 | 검사를 돌리고 영수증을 남깁니다. |
+| **재사용** | 같은 입력으로 이미 통과했다 | 다시 돌리지 않고 그 영수증을 가리킵니다. |
+| **덮임** | 이 검사를 포함하는 넓은 검사가 같은 입력으로 통과했다 | 좁은 검사를 따로 돌리지 않습니다. |
+| **거절** | 같은 입력으로 이미 실패했다 | 다시 돌리지 않습니다. 입력을 고칩니다. |
+
+건너뛴 검사는 통과로 세지 않고 근거가 된 영수증을 가리킵니다. 묶음 사이의 상호작용은 캠페인을 닫기 전의 **마지막 전체 검증**이 gate의 결과를 다시 쓰지 않고 한 번 확인합니다.
+
+[progress-monitor](skills/progress-monitor/SKILL.md)는 이 흐름의 운영 규칙과 실행기입니다.
+
+- **단계 위임:** 단계 하나를 새 맥락의 수행자에게 맡기고 주소(캠페인 폴더·항목·단계)만 넘깁니다. 상태와 근거는 파일에 남습니다.
+- **정체 감시:** 종료 훅이 남은 일을 알려 주고, 상태 변화 없이 같은 일이 이어지면 한 번 다시 시도한 뒤 우회합니다. 훅은 추적하지 않는 로컬 설정에만 둡니다.
+- **방향 조정:** 수행 중의 항목 추가·취소·묶음 재편을 사건으로 남깁니다. 후보가 둘 이상이면 실제로 실행해 비교합니다. 목표·수용 기준·검사 기준·상한을 바꾸는 일은 사람에게 넘기고, 그동안 다른 항목을 계속합니다.
+
+실행기는 수용을 판정하지 않습니다. 덮음과 입력의 선언이 옳은지는 선언한 사람의 책임이고, 최종 수용은 1계층 checklist와 과업 책임자가 맡습니다. 새 맥락 검토는 plan에서 표시한 항목만 받으며, 회차 상한(기본 3)에 닿으면 사람에게 넘깁니다.
 
 ## 저장소 안내
 
 | 경로 | 내용 |
 |---|---|
-| [AGENTS.md](AGENTS.md) | 프로젝트 진입 지침 |
-| [.codex/rules/workflow.md](.codex/rules/workflow.md) | 역할·승인 범위·검증·중단과 재개 |
-| [.codex/rules/docs.md](.codex/rules/docs.md) | 의도 → 계획 → 수행 기록 → 검증 문서 연결 |
-| [.agents/skills/](.agents/skills/) | 재사용할 수 있는 스킬과 내부 검사 |
-| [assets/](assets/) | README의 SVG 구조도·도구 구성도·개선 루프 |
+| [AGENTS.md](AGENTS.md) | 모든 이너 하네스 공통 진입 지침(Codex가 직접 읽음) |
+| [CLAUDE.md](CLAUDE.md) | Claude Code 진입 파일(`@AGENTS.md`) |
+| [rules/workflow.md](rules/workflow.md) | 역할·승인 범위·검증·중단과 재개 |
+| [rules/docs.md](rules/docs.md) | 의도 → 계획 → 수행 기록 → 검증 문서 연결 |
+| [rules/harness.md](rules/harness.md) | 이너 하네스 애그노스틱 정책과 어댑터 표 |
+| [skills/](skills/) | 재사용할 수 있는 스킬과 내부 검사(정본) |
+| `.agents/skills/`, `.claude/skills/` | Codex·Claude Code 스킬 발견용 디렉터리 심볼릭 링크 |
+| `.claude/settings.json` | Claude Code용 공통 금지선(deny/ask). 자율도는 로컬 설정 |
+| [assets/](assets/) | README의 SVG 구조도·하네스 어댑터·도구 구성도·개선 루프·캠페인 gate |
 | [docs/](docs/) | 역할별 doc_gen_guide.md: 문서의 용도·작성법·예시 |
+| [campaigns/](campaigns/) | 오래 걸리는 개선 과업을 항목과 단계로 나누는 규약과 틀 |
+| `scripts/check_campaign.py` | 캠페인의 틀과 인스턴스 형식을 읽기 전용으로 검사 |
+| [skills/progress-monitor](skills/progress-monitor/SKILL.md) | 캠페인의 운영 규칙과 실행기: 검증 묶음의 gate, 검사 결과의 재사용, 정체 감시, 방향 조정 |
 | [__llm-wiki/](__llm-wiki/) | 로컬 포인터 위키를 만들 계약·용어집 |
 | `repack_target/` | 로컬 개선 대상과 최종 산출물을 준비할 공간 |
 | [PUBLICATION.md](PUBLICATION.md) | 공개 범위와 공개본 생성 절차 |
@@ -105,31 +145,44 @@ repack_val_agent는 코드베이스·스킬·MCP·플러그인 등의 **개선�
 워커를 연결할 때 로컬 설정이 없으면 설정 예시를 복사합니다. 기존 설정이 있으면 필요한 항목을 검토해 갱신합니다. 작업 경로·실행 CLI·진입 지침은 실제 대상에 맞추고, 실제 경로가 든 설정은 로컬에만 보관합니다.
 
 ```bash
-cp .agents/skills/worker-agent-control/config.example.json .agents/skills/worker-agent-control/config.json
+cp skills/worker-agent-control/config.example.json skills/worker-agent-control/config.json
 ```
 
-대상과 호출 권한을 정한 뒤 연결을 확인합니다. 연결 명령·필수 인자·권한·결과 확인은 설치된 [worker-agent-control](.agents/skills/worker-agent-control/SKILL.md)의 지침을 따릅니다. 읽기 전용 discovery도 실제 CLI를 호출하며, 연결 성공과 본작업 완료를 구분합니다. 개선 실험 계약은 [harness2](.agents/skills/harness2/SKILL.md)에서 확인합니다.
+대상과 호출 권한을 정한 뒤 연결을 확인합니다. 연결 명령·필수 인자·권한·결과 확인은 설치된 [worker-agent-control](skills/worker-agent-control/SKILL.md)의 지침을 따릅니다. 읽기 전용 discovery도 실제 CLI를 호출하며, 연결 성공과 본작업 완료를 구분합니다. 개선 실험 계약은 [harness2](skills/harness2/SKILL.md)에서 확인합니다.
 
-새 clone에서는 [문서발행규칙의 최초 위키 초기화](.codex/rules/docs.md#wiki-desk-입고)를 한 번 수행합니다. 이후 생성 문서를 입고·검사하고 스킬 자체검사를 실행할 수 있습니다. 외부 프로젝트는 실행하지 않습니다.
+새 clone에서는 [문서발행규칙의 최초 위키 초기화](rules/docs.md#wiki-desk-입고)를 한 번 수행합니다. 이후 생성 문서를 입고·검사하고 스킬 자체검사를 실행할 수 있습니다. 외부 프로젝트는 실행하지 않습니다.
 
 ```bash
-node .agents/skills/wiki-desk/src/cli.ts sync
-node .agents/skills/wiki-desk/src/cli.ts sync --apply
-node .agents/skills/wiki-desk/src/cli.ts check
+node skills/wiki-desk/src/cli.ts sync
+node skills/wiki-desk/src/cli.ts sync --apply
+node skills/wiki-desk/src/cli.ts check
 ```
 
 선택한 도구는 각 스킬의 실행 계약을 확인합니다. 예를 들어 Harness²의 로컬 자체검사는 다음과 같습니다. 실제 대상의 개선 평가는 과업의 완료 기준으로 별도 수행합니다.
 
 ```bash
-node --test .agents/skills/harness2/tests/experiment.test.mjs
+node --test skills/harness2/tests/experiment.test.mjs
+```
+
+캠페인의 틀과 실행기는 다음으로 확인합니다. 종료 훅을 쓰려면 [훅 설치 안내](skills/progress-monitor/references/hooks.md)의 예시를 하네스별 로컬 설정에 넣습니다.
+
+```bash
+python3 scripts/check_campaign.py
+python3 -B -m unittest discover -s skills/progress-monitor/tests
 ```
 
 DeepEval 기반 평가를 선택한다면 `deepeval-pack`을 별도로 준비하고 해당 스킬의 설치·MCP 등록 지침을 확인합니다. Judge provider/model과 활성 설정·인증 정보는 각 작업 공간에서 준비합니다.
 
 ## 문서 작성과 배포 경계
 
-기본 과업은 interview → plan → devlog → checklist로 연결합니다. 필요할 때 request 문서를 추가합니다. 각 폴더의 가이드에서 역할별 필수 내용을 확인하고, 공통 명명·frontmatter·연결·입고 규칙은 [문서발행규칙](.codex/rules/docs.md)을 따릅니다.
+기본 과업은 interview → plan → devlog → checklist로 연결합니다. 필요할 때 request 문서를 추가합니다. 각 폴더의 가이드에서 역할별 필수 내용을 확인하고, 공통 명명·frontmatter·연결·입고 규칙은 [문서발행규칙](rules/docs.md)을 따릅니다.
 
-`docs/*/doc_gen_guide.md`만 Git으로 배포합니다. 같은 폴더에 생성하는 실제 문서와 위키 카드·index·log·receipt·캐시는 추적하지 않습니다. 생성 문서의 작성·검증·입고와 기존 과업의 재개는 계속 수행합니다. 기존 로컬 이력은 추적 해제 후에도 보존하며, 이 전환이 과거 Git 커밋까지 제거하지는 않습니다.
+대상 프로젝트를 개선하는 과업은 오래 걸리므로 [campaigns/](campaigns/README.md)에서 항목(cell)과 단계(phase)로 나눠 수행합니다. 네 문서에는 큰 범주만 적고 항목별 상태와 사건은 캠페인 인스턴스에 둡니다. 검증은 항목마다 돌리지 않고 검증 묶음의 gate에서 한 번 돌리며, 그 운영 규칙과 실행기는 [progress-monitor 스킬](skills/progress-monitor/SKILL.md)에 있습니다. 형식은 다음 명령으로 검사합니다.
+
+```bash
+python3 scripts/check_campaign.py
+```
+
+`docs/*/doc_gen_guide.md`와 `campaigns/README.md`·`campaigns/_template/`만 Git으로 배포합니다. 같은 폴더에 생성하는 실제 문서, 캠페인 인스턴스, 위키 카드·index·log·receipt·캐시는 추적하지 않습니다. 생성 문서의 작성·검증·입고와 기존 과업의 재개는 계속 수행합니다. 기존 로컬 이력은 추적 해제 후에도 보존하며, 이 전환이 과거 Git 커밋까지 제거하지는 않습니다.
 
 기본 라이선스는 [MIT](LICENSE)입니다. 외부에서 가져온 자산의 원래 라이선스와 출처는 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) 및 각 스킬 디렉터리에 보존합니다.

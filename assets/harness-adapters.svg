@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="640" viewBox="0 0 1100 640" role="img" aria-labelledby="adapters-title adapters-desc" font-family="Pretendard, sans-serif" font-size="22" fill="#141413">
+  <title id="adapters-title">아우터 하네스는 하나, 이너 하네스는 교체</title>
+  <desc id="adapters-desc">가운데의 아우터 하네스는 사람이 설계해 Git으로 배포하는 정본이다. AGENTS.md 진입 지침, rules의 세 헌장, skills의 스킬, docs의 작성 가이드, campaigns의 캠페인 규약으로 이루어진다. 왼쪽의 Codex와 오른쪽의 Claude Code는 교체할 수 있는 이너 하네스이며 얇은 어댑터로 정본에 연결된다. Codex는 AGENTS.md를 직접 읽고 .agents/skills 링크와 .codex 로컬 설정을 쓴다. Claude Code는 AGENTS.md를 가져오는 CLAUDE.md와 .claude/skills 링크, 금지선만 담은 settings.json을 쓴다. 하네스를 바꿔도 과업은 초기화되지 않는다. 인계는 과업 문서와 캠페인 인스턴스로 하고 실행자는 실제 값으로 기록한다. 이 그림은 두 하네스의 설정이 동등하다는 뜻이 아니며, 정적 연결이 실제 인식의 증거라는 뜻도 아니다.</desc>
+  <defs>
+    <marker id="adapters-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M 1 1 L 9 5 L 1 9 Z" fill="#1B365D"/></marker>
+  </defs>
+  <rect width="1100" height="640" fill="#f5f4ed"/>
+  <text x="44" y="54" font-size="30" font-weight="700" fill="#1B365D">아우터 하네스는 하나, 이너 하네스는 교체</text>
+  <text x="44" y="100" font-size="24">정본은 하네스 중립 경로에 두고, 각 하네스는 얇은 어댑터로 연결한다</text>
+  <g fill="#faf9f5" stroke="#e8e6dc" stroke-width="2">
+    <rect x="44" y="170" width="270" height="270"/>
+    <rect x="786" y="170" width="270" height="270"/>
+    <rect x="44" y="500" width="1012" height="100"/>
+  </g>
+  <rect x="364" y="140" width="372" height="330" fill="#faf9f5" stroke="#1B365D" stroke-width="2"/>
+  <g fill="none" stroke="#1B365D" stroke-width="2.5" marker-end="url(#adapters-arrow)">
+    <path d="M 314 305 H 364"/>
+    <path d="M 786 305 H 736"/>
+  </g>
+  <text x="384" y="182" font-size="26" font-weight="700" fill="#1B365D">아우터 하네스 (정본)</text>
+  <text x="384" y="230">AGENTS.md — 진입 지침</text>
+  <text x="384" y="270">rules/ — 세 헌장</text>
+  <text x="384" y="310">skills/ — 스킬과 실행기</text>
+  <text x="384" y="350">docs/ — 문서 작성 가이드</text>
+  <text x="384" y="390">campaigns/ — 캠페인 규약</text>
+  <text x="384" y="442" font-size="19" fill="#504e49">사람이 설계하고 Git으로 배포</text>
+  <text x="60" y="210" font-size="26" font-weight="700" fill="#1B365D">Codex</text>
+  <text x="60" y="256" font-size="20">AGENTS.md를 직접 읽음</text>
+  <text x="60" y="292" font-size="20">.agents/skills 링크</text>
+  <text x="60" y="328" font-size="20">.codex/ 로컬 설정</text>
+  <text x="60" y="412" font-size="19" fill="#504e49">이너 하네스 · 얇은 어댑터</text>
+  <text x="802" y="210" font-size="26" font-weight="700" fill="#1B365D">Claude Code</text>
+  <text x="802" y="256" font-size="20">CLAUDE.md 진입 파일</text>
+  <text x="802" y="292" font-size="20">.claude/skills 링크</text>
+  <text x="802" y="328" font-size="20">settings.json 금지선</text>
+  <text x="802" y="412" font-size="19" fill="#504e49">이너 하네스 · 얇은 어댑터</text>
+  <text x="64" y="540" font-size="24" font-weight="700" fill="#1B365D">하네스를 바꿔도 과업은 이어진다</text>
+  <text x="64" y="576" font-size="20">인계는 과업 문서와 캠페인 인스턴스로 한다 · 실행자는 실제 값으로 기록한다</text>
+</svg>

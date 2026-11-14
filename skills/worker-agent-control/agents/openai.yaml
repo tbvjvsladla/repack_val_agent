@@ -1,0 +1,4 @@
+interface:
+  display_name: "워커 에이전트 제어"
+  short_description: "오케스트레이터가 기본 Claude Code 또는 명시한 Codex CLI 워커를 제어합니다"
+  default_prompt: "$worker-agent-control로 target_project 워커에게 승인된 작업을 맡겨줘."

@@ -1,0 +1,349 @@
+{
+  "manifest_version": "1.0.0",
+  "package": "wiki-desk",
+  "inventory_excludes": [
+    "PACKAGE_MANIFEST.json",
+    ".git",
+    "node_modules",
+    ".cache"
+  ],
+  "file_count": 56,
+  "files": [
+    {
+      "path": ".gitattributes",
+      "bytes": 135,
+      "mode": "0644",
+      "sha256": "859da5366a024e9fdb87542f396e591b8f6b9b025d522421ccf210021cf20ba5"
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 115,
+      "mode": "0644",
+      "sha256": "8ada9f72d55a625c118ee2b28a8671a68bed63c9cdc0eb56fa7c6334c817e2c1"
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 1245,
+      "mode": "0644",
+      "sha256": "f860dfd0f0ca3b66cccec109a2a0b6b0bcd5ad52ec33d49db882099f69247842"
+    },
+    {
+      "path": "README.md",
+      "bytes": 14164,
+      "mode": "0644",
+      "sha256": "ccc8e16e2ea741b89964554f422e5e1e970f9d314f161c136cbcd8da87073a04"
+    },
+    {
+      "path": "SKILL.md",
+      "bytes": 9887,
+      "mode": "0644",
+      "sha256": "81a5caf87fe2e830671a10fb355b531b2e7c93cc47d563212ebb3f88e44a341a"
+    },
+    {
+      "path": "agents/openai.yaml",
+      "bytes": 308,
+      "mode": "0644",
+      "sha256": "9fa0a2cb5e1d7f8b5b42c9f994863882ba7d2976a2dafda65c7783ade3db50cb"
+    },
+    {
+      "path": "assets/glossary.example.json",
+      "bytes": 53,
+      "mode": "0644",
+      "sha256": "e5476b5cf1b0827e84377c8078a40f08b92e62ffb482644eab0cd93ba42707f3"
+    },
+    {
+      "path": "assets/project-contract.example.json",
+      "bytes": 1403,
+      "mode": "0644",
+      "sha256": "ed780d08682eda47e5125f0b364f1273798ddc11eb0ce3baa277324054ba8b27"
+    },
+    {
+      "path": "package.json",
+      "bytes": 394,
+      "mode": "0644",
+      "sha256": "2699f0ce56492d42585ef89fa4a41486284e0963b98375316423d724131a1ff9"
+    },
+    {
+      "path": "references/authority.md",
+      "bytes": 4400,
+      "mode": "0644",
+      "sha256": "a95ecd3779fd53787febbbd426ae3de15fc135ab4d28a548320c77477600f271"
+    },
+    {
+      "path": "references/charter.md",
+      "bytes": 3641,
+      "mode": "0644",
+      "sha256": "e8a416ae1ca1f26e77365a9501b1d3599cec8210a310b3d8582fc01deea7454d"
+    },
+    {
+      "path": "references/codex.md",
+      "bytes": 5001,
+      "mode": "0644",
+      "sha256": "f015c90b04febec0677874d926ec675647d2fd4732b41e322eadbee54576d01b"
+    },
+    {
+      "path": "references/installation.md",
+      "bytes": 5646,
+      "mode": "0644",
+      "sha256": "4f3eea5962a0791511f0f808a162ed07eb27b21ca761769fd3462d6c9807bfe2"
+    },
+    {
+      "path": "references/maintenance.md",
+      "bytes": 3499,
+      "mode": "0644",
+      "sha256": "43820fd941ca4b753bdc75a20471ee916e45a1179b854212bfd5e289569c4a7a"
+    },
+    {
+      "path": "references/okf.md",
+      "bytes": 5612,
+      "mode": "0644",
+      "sha256": "d59e2f8b9af84badf283bbedb2ccc95e8314499d8350019900de4f5a3709897d"
+    },
+    {
+      "path": "scripts/package-manifest.ts",
+      "bytes": 3530,
+      "mode": "0644",
+      "sha256": "90b4e047d83e0720855727395c4b50a87f3502d90d1264fd281c0f4e812f20ba"
+    },
+    {
+      "path": "scripts/sanitize-check.ts",
+      "bytes": 2666,
+      "mode": "0644",
+      "sha256": "9f321d962819b89a358235b2122196e1dfbb62d0b82b0149cf702d350cd94ab3"
+    },
+    {
+      "path": "src/cli.ts",
+      "bytes": 3061,
+      "mode": "0644",
+      "sha256": "fafa4e382b4e07ae7003f7721ee43224cfcd78eac4a93d0ad7390c8bebd17f94"
+    },
+    {
+      "path": "src/commands.ts",
+      "bytes": 32688,
+      "mode": "0644",
+      "sha256": "58d7349fe2b73182bc7bb4719e51c08337d1bd621d71a3d5fa75999aadb11d73"
+    },
+    {
+      "path": "src/contract.ts",
+      "bytes": 13625,
+      "mode": "0644",
+      "sha256": "7bb172ae4146ad6a3a4569f112e1479aa08c7be4bc7bd8449665733320c335cc"
+    },
+    {
+      "path": "src/frontmatter.ts",
+      "bytes": 26389,
+      "mode": "0644",
+      "sha256": "d862d5bde298b73aae5fb724683ad36361f5928f6981e9cc3dd15f4fa043b23f"
+    },
+    {
+      "path": "src/fs-safety.ts",
+      "bytes": 14049,
+      "mode": "0644",
+      "sha256": "6e66d798cf4b6468c474ffcbe79d4a248faac981c9485ec3661c770d18ea710b"
+    },
+    {
+      "path": "src/glossary.ts",
+      "bytes": 7886,
+      "mode": "0644",
+      "sha256": "30aee8047ae432f442de94b9e4a125c74f01a713760dc4c9b1b3dd0d03d2102b"
+    },
+    {
+      "path": "src/index.ts",
+      "bytes": 11432,
+      "mode": "0644",
+      "sha256": "2b6d820b1e65264289af786478995b70e64b75d2c928cc249f4808d1c041da0a"
+    },
+    {
+      "path": "src/links.ts",
+      "bytes": 9007,
+      "mode": "0644",
+      "sha256": "dc865057348953009b83912f8f701f68a89735814ff23396125acddad1cdebc4"
+    },
+    {
+      "path": "src/mapping.ts",
+      "bytes": 8070,
+      "mode": "0644",
+      "sha256": "150ef1301c3db5cf2c0228bb47e5c0c5815833a018d252007b3bd28634373b38"
+    },
+    {
+      "path": "src/okf.ts",
+      "bytes": 10994,
+      "mode": "0644",
+      "sha256": "d249a28b969720bc2cf19d5add73009c965d4bb435d2ad8a6a40de0deb5b8226"
+    },
+    {
+      "path": "src/query.ts",
+      "bytes": 8116,
+      "mode": "0644",
+      "sha256": "81039e89f44d90658d0e463697805000550126c168e3b938faab11fe015a0952"
+    },
+    {
+      "path": "src/read.ts",
+      "bytes": 1117,
+      "mode": "0644",
+      "sha256": "c956eda490213fe826e98ab7b6996b09aac1636ce0c0bfe2971b40742b200c85"
+    },
+    {
+      "path": "src/tokenize.ts",
+      "bytes": 2714,
+      "mode": "0644",
+      "sha256": "1e39059f17c62a114fd3a55c6f0f6db8b7c0df4bdedaa44a893e017a9d938a6d"
+    },
+    {
+      "path": "src/tree.ts",
+      "bytes": 4638,
+      "mode": "0644",
+      "sha256": "5af3d97fbebe33678408193bab9250d7fe8489a7578906d0f111ebd0ec302af3"
+    },
+    {
+      "path": "src/types.ts",
+      "bytes": 4842,
+      "mode": "0644",
+      "sha256": "b6ed323261d2a207ba62cf71050a8593540b055799aadb3ea797e2c134e9c2d7"
+    },
+    {
+      "path": "tests/commands.test.ts",
+      "bytes": 38200,
+      "mode": "0644",
+      "sha256": "bb3fe37bc4b78d615a7af6769dd8a5ec3a7c8f2e4d251f71c9c71e2b1d9885c9"
+    },
+    {
+      "path": "tests/contract.test.ts",
+      "bytes": 17048,
+      "mode": "0644",
+      "sha256": "cb060977e614ada24d772ae7a309ae4e6896b01559947774f45bf246624df6ca"
+    },
+    {
+      "path": "tests/fixtures/contract/valid.json",
+      "bytes": 1089,
+      "mode": "0644",
+      "sha256": "6fbeb8bc87a212c40912543f66241af7431a8a5a09f8dc11e25d307ac9068af5"
+    },
+    {
+      "path": "tests/fixtures/okf/ATTRIBUTION.md",
+      "bytes": 848,
+      "mode": "0644",
+      "sha256": "a5646ce0e8edda3ebf74cfd7c7653397464dd3dee12c78b5a95e578a8c169217"
+    },
+    {
+      "path": "tests/fixtures/okf/acme_index.md",
+      "bytes": 536,
+      "mode": "0644",
+      "sha256": "02e3207cffe6169ef056b0ff5f0e76311116f5ca7d8b0cc9ab4301dc01a398c1"
+    },
+    {
+      "path": "tests/fixtures/okf/acme_log.md",
+      "bytes": 1070,
+      "mode": "0644",
+      "sha256": "def518ddaa234f4a6533b9ca530622d39816d1a767de77ae489f43a538354005"
+    },
+    {
+      "path": "tests/fixtures/okf/acme_revenue.md",
+      "bytes": 1866,
+      "mode": "0644",
+      "sha256": "1b9c033d2c715fa8beecfa0f371fafa1e70f64f1eeeac2a873ef5389389376b2"
+    },
+    {
+      "path": "tests/fixtures/okf/acme_revenue_ytd.md",
+      "bytes": 2738,
+      "mode": "0644",
+      "sha256": "d4584e831dff9f6a284b1f9116ca41a16cfc5c26ca377fa6faa46ea0e9b5c5e7"
+    },
+    {
+      "path": "tests/fixtures/okf/ga4_purchasers.md",
+      "bytes": 1256,
+      "mode": "0644",
+      "sha256": "9c7b14b95d950b43cfea890bed46e62cd7f64ce032f2f38e3df627603e927f85"
+    },
+    {
+      "path": "tests/fixtures/okf/so_content_licenses.md",
+      "bytes": 1492,
+      "mode": "0644",
+      "sha256": "a4b12b2b3c9e5f87753d6c6917d6878aae6ec9e183ee84f9be30c2ff0436d048"
+    },
+    {
+      "path": "tests/frontmatter.test.ts",
+      "bytes": 14195,
+      "mode": "0644",
+      "sha256": "ccde4ed96e8ae41e118c7836e51fd23fa22dae860cdb0940e71015d35e5e3a10"
+    },
+    {
+      "path": "tests/fs-safety.test.ts",
+      "bytes": 13597,
+      "mode": "0644",
+      "sha256": "cf3bcabed7490b31e585f7129b4330810c2a5ebae93d38482bbed86f4902bc5d"
+    },
+    {
+      "path": "tests/glossary.test.ts",
+      "bytes": 6294,
+      "mode": "0644",
+      "sha256": "973851ea31532de63591872cb2ab6c31a8e59eb0dd8891220c224be3a0ff34c1"
+    },
+    {
+      "path": "tests/index.test.ts",
+      "bytes": 11240,
+      "mode": "0644",
+      "sha256": "475a615d3d12130f36b288a004f706a6eccd2a17bba82af3d3256df25adda041"
+    },
+    {
+      "path": "tests/links.test.ts",
+      "bytes": 5376,
+      "mode": "0644",
+      "sha256": "37009b10ab636a68fc3ace0d4ba854f0c59c4e483f4e9cb2612c3b34581b243f"
+    },
+    {
+      "path": "tests/mapping.test.ts",
+      "bytes": 13710,
+      "mode": "0644",
+      "sha256": "4e6ddde54cbda91a740640e8a3c9cbb3115dac49c927b37a931848b279071b96"
+    },
+    {
+      "path": "tests/okf-roundtrip.probe.ts",
+      "bytes": 1852,
+      "mode": "0644",
+      "sha256": "21c07794e12d42abd092f2c315a3f646c78f9420bec3615dbb4c52b72e5edf89"
+    },
+    {
+      "path": "tests/okf.test.ts",
+      "bytes": 15926,
+      "mode": "0644",
+      "sha256": "b08527b604514bea6c17e4c8c5414a5110e72766e7ad657254069502275111b6"
+    },
+    {
+      "path": "tests/package.test.ts",
+      "bytes": 1334,
+      "mode": "0644",
+      "sha256": "9ffbe3280b0dc76261508b9ccef1fa0784da69c674e99cc4041552fa79b73cc3"
+    },
+    {
+      "path": "tests/perf.probe.ts",
+      "bytes": 5168,
+      "mode": "0644",
+      "sha256": "eb79ebebf2c78c52a7820e5ec3c03a4feac69f8b809d010a2dd5d481ea2c37c7"
+    },
+    {
+      "path": "tests/query.test.ts",
+      "bytes": 6345,
+      "mode": "0644",
+      "sha256": "879fec46d019d0898f28218977594d56f98b728a3cf9336508151332cd4f6776"
+    },
+    {
+      "path": "tests/read.test.ts",
+      "bytes": 1431,
+      "mode": "0644",
+      "sha256": "76c55d39e44199a1ff66cce9a0687cdc49249eb6c1609fb2dcf0e7dbc027b5c5"
+    },
+    {
+      "path": "tests/tokenize.test.ts",
+      "bytes": 2667,
+      "mode": "0644",
+      "sha256": "9dffaf41c1552687a45e06dc886758b14486769933c893ccd90083b969371088"
+    },
+    {
+      "path": "tests/tree.test.ts",
+      "bytes": 3907,
+      "mode": "0644",
+      "sha256": "30d13a3081384ea37a36e2b18bb0888a98526067c8e585132b7a824a78fae913"
+    }
+  ]
+}

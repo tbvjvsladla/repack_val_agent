@@ -3,8 +3,10 @@
 | 파일 | 설명 |
 |---|---|
 | [orchestration.svg](orchestration.svg) | 오케스트레이터·분리 워커·실제 개선 대상의 책임과 결과 인수 |
-| [skill-layers.svg](skill-layers.svg) | 개선 방향·선택 수단·기반 도구와 두 헌장의 관계 |
+| [harness-adapters.svg](harness-adapters.svg) | 아우터 하네스(정본)와 교체할 수 있는 이너 하네스의 어댑터 연결 |
+| [skill-layers.svg](skill-layers.svg) | 개선 방향·선택 수단·기반 도구와 세 헌장의 관계 |
 | [improvement-loop.svg](improvement-loop.svg) | 실행·검증·판단·회고와 다음 과업으로 이어지는 문서 근거 |
+| [campaign-gate.svg](campaign-gate.svg) | 두 계층의 기록, 검증 묶음의 gate(실행·재사용·덮임·거절), 마지막 전체 검증, progress-monitor의 책임 |
 
 kami-ko의 디자인 일관성 원칙을 참고해 작성한 프로젝트 전용 SVG입니다. 배경 `#f5f4ed`, 보조 표면 `#faf9f5`, 강조 `#1B365D`, 본문 `#141413`, 보조 본문 `#504e49`, 구분선 `#e8e6dc`를 사용합니다. 간격·활자·절제된 선으로 위계를 만들고 Pretendard와 시스템 sans-serif 대체 글꼴을 지정합니다.
 

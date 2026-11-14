@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Create a public workflow snapshot with writing guides and no task history."""
+"""Create a public workflow snapshot with writing guides and no task history.
+
+The campaign skeleton (campaigns/README.md, campaigns/_template/) is included;
+campaign instances are not.
+
+Canonical rules and skills live at harness-neutral paths (rules/, skills/).
+Per-harness skill discovery adapters (.agents/skills/<n>, .claude/skills/<n>)
+are directory symlinks and are recreated as symlinks in the output.
+"""
 from __future__ import annotations
 
 import argparse
@@ -13,14 +21,18 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKER_CONFIG = ".agents/skills/worker-agent-control/config.json"
+WORKER_CONFIG = "skills/worker-agent-control/config.json"
 SKILLS = {
-    "code-review", "harness2", "pr-review-toolkit", "rust-repack",
+    "code-review", "harness2", "pr-review-toolkit", "progress-monitor", "rust-repack",
     "wiki-desk", "worker-agent-control",
 }
+RULES = {"workflow.md", "docs.md", "harness.md"}
+ADAPTER_DIRS = (".agents/skills", ".claude/skills")
 TOP_FILES = {
-    ".gitignore", "AGENTS.md", "README.md", "LICENSE",
+    ".gitignore", "AGENTS.md", "CLAUDE.md", "README.md", "LICENSE",
     "PUBLICATION.md", "THIRD_PARTY_NOTICES.md", "scripts/prepare_public.py",
+    "scripts/check_harness_adapters.py", "scripts/check_campaign.py",
+    "campaigns/README.md", "campaigns/_template/campaign.json", ".claude/settings.json",
     "__llm-wiki/.gitignore", "__llm-wiki/contract.json", "__llm-wiki/glossary.json",
 }
 PRIVATE_PARTS = {
@@ -56,12 +68,17 @@ def allowed(path: str) -> bool:
         return False
     if path in TOP_FILES:
         return True
-    if p.parts[:2] == (".codex", "rules"):
-        return p.name in {"workflow.md", "docs.md"} and len(p.parts) == 3
+    if p.parts[0] == "rules":
+        return p.name in RULES and len(p.parts) == 2
+    if p.parts[0] == "assets":
+        return len(p.parts) == 2 and p.suffix in {".svg", ".md"}
     if p.parts[0] == "docs":
         return len(p.parts) == 3 and p.name == "doc_gen_guide.md"
-    if len(p.parts) > 3 and p.parts[:2] == (".agents", "skills"):
-        return p.parts[2] in SKILLS and (
+    if p.parts[0] == "campaigns":
+        # Only the skeleton is public; instances and the ACTIVE pointer stay local.
+        return len(p.parts) > 2 and p.parts[1] == "_template" and p.suffix in {".json", ".jsonl", ".md"}
+    if len(p.parts) > 2 and p.parts[0] == "skills":
+        return p.parts[1] in SKILLS and (
             p.suffix in {".md", ".mjs", ".ts", ".py", ".json", ".yaml", ".yml", ".toml"}
             or p.name in {"LICENSE", ".gitignore", ".gitattributes"}
         )
@@ -84,13 +101,30 @@ def source_files() -> dict[str, bytes]:
         if not path.is_file():
             raise ValueError(f"Missing source: {rel}")
         sources[rel] = path.read_bytes()
-    for required in TOP_FILES | {".codex/rules/workflow.md", ".codex/rules/docs.md"}:
+    for required in TOP_FILES | {f"rules/{name}" for name in RULES}:
         if required not in sources:
             raise ValueError(f"Required public file missing: {required}")
     for skill in SKILLS:
-        if f".agents/skills/{skill}/SKILL.md" not in sources:
+        if f"skills/{skill}/SKILL.md" not in sources:
             raise ValueError(f"Required public skill missing: {skill}")
     return sources
+
+
+def adapter_links() -> dict[str, str]:
+    """Return every skill discovery adapter as {path: target}; each must point at its canonical skill."""
+    links = {}
+    for base in ADAPTER_DIRS:
+        for skill in sorted(SKILLS):
+            rel = f"{base}/{skill}"
+            path = ROOT / rel
+            expected = f"../../skills/{skill}"
+            if not path.is_symlink():
+                raise ValueError(f"Skill adapter is not a symlink: {rel}")
+            target = str(path.readlink())
+            if target != expected or not (ROOT / "skills" / skill / "SKILL.md").is_file():
+                raise ValueError(f"Skill adapter has unexpected target: {rel} -> {target}")
+            links[rel] = target
+    return links
 
 
 def environment_replacements() -> dict[str, str]:
@@ -135,7 +169,7 @@ def check_text(rel: str, text: str, replacements: dict[str, str]) -> None:
             raise ValueError(f"Public content rejected ({label}): {rel}")
     if any(old in text for old in replacements):
         raise ValueError(f"Unredacted environment value: {rel}")
-    if rel.endswith(".md") and not rel.startswith(".agents/skills/wiki-desk/"):
+    if rel.endswith(".md") and not rel.startswith("skills/wiki-desk/"):
         if UUID.search(text) or INTERVIEW.search(text) or EXEC_ID.search(text):
             raise ValueError(f"Unredacted session identifier: {rel}")
 
@@ -149,6 +183,7 @@ def prepare(output: Path) -> dict:
     if output.is_relative_to(ROOT) and not output.is_relative_to(ROOT / "temp"):
         raise ValueError("Inside the source workspace, output must be under temp/")
     sources = source_files()
+    links = adapter_links()
     replacements = environment_replacements()
     texts = {rel: data.decode("utf-8") for rel, data in sources.items()}
     corpus = "\n".join(texts.values())
@@ -159,7 +194,7 @@ def prepare(output: Path) -> dict:
     prepared = {}
     counts = Counter()
     for rel, text in texts.items():
-        if not rel.startswith(".agents/skills/wiki-desk/"):
+        if not rel.startswith("skills/wiki-desk/"):
             if rel.endswith(".md"):
                 text, changes = redact(text, replacements, ids)
             else:
@@ -173,11 +208,18 @@ def prepare(output: Path) -> dict:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
         path.chmod((ROOT / rel).stat().st_mode & 0o777)
+    for rel, target in links.items():
+        path = output / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.symlink_to(target, target_is_directory=True)
     # The output gets an independent Git history; never copy .git or its metadata.
     current = source_files()
-    if current != sources or environment_replacements() != replacements:
+    if current != sources or adapter_links() != links or environment_replacements() != replacements:
         raise ValueError("Sources changed during export; do not publish this output; rerun into a new directory")
-    files = sorted(p.relative_to(output).as_posix() for p in output.rglob("*") if p.is_file())
+    files = sorted(
+        p.relative_to(output).as_posix() for p in output.rglob("*")
+        if p.is_file() and not any(q.is_symlink() for q in (p, *p.parents))
+    )
     for rel in files:
         check_text(rel, (output / rel).read_text(encoding="utf-8"), replacements)
     manifest = {
@@ -189,6 +231,7 @@ def prepare(output: Path) -> dict:
         "wiki_runtime_included": False,
         "redactions": dict(counts),
         "files": files,
+        "symlinks": links,
     }
     (output / "PUBLIC_EXPORT.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8",

@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "_note": "근거의 위치만 적는다. 사본과 해시는 두지 않는다. 항목의 키는 kind, path, cell, note뿐이다. path는 저장소 루트 기준 상대 경로이거나 절대 경로이며 실재해야 한다.",
+  "pointers": []
+}
