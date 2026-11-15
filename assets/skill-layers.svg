@@ -1,13 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="780" viewBox="0 0 1100 780" role="img" aria-labelledby="layers-title layers-desc" font-family="Pretendard, sans-serif" font-size="24" fill="#141413">
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="880" viewBox="0 0 1100 880" role="img" aria-labelledby="layers-title layers-desc" font-family="Pretendard, sans-serif" font-size="24" fill="#141413">
   <title id="layers-title">방향·수단·기반을 분리하는 도구 구성</title>
-  <desc id="layers-desc">작업수행규칙·문서발행규칙·하네스규칙의 세 헌장이 전체 작업의 역할·권한·검증·문서 규칙 경계를 이룬다. 상위 사용자 의도에 따라 메인이 과업별로 각 도구의 사용/미사용·순서·입출력을 정한다. 개선 방향의 harness2는 후보 제안·탐색·대조/조합·선택·회고를 근거로 지원하는 Google Harness² 방법의 독립 구현이며 실제 워커 실행기나 최종 수용자가 아니다. 선택 가능한 수단은 code-review의 신규 결함 검토, rust-repack의 Rust 변환, deepeval-pack의 LLM Judge 평가, pr-review-toolkit의 관점별 검토 및 기타 필요한 독립 도구다. 각 도구는 독립 기동과 명확한 책임을 갖는다. 기반 도구 worker-agent-control은 워커 연결·실행 결과 인수, wiki-desk는 문서 근거 조회·입고를 맡는다. 두 기반 도구는 독립 책임이며 서로 자동 호출하는 관계가 아니다. 세 책임층은 필수 직렬 실행 체인이 아니며 공통 플러그인 API나 활성화 UI가 구현되었다는 뜻도 아니다. 개별 스킬을 헌장이나 자동 엔진으로 표현하지 않는다.</desc>
-  <rect width="1100" height="780" fill="#f5f4ed"/>
+  <desc id="layers-desc">작업수행규칙·문서발행규칙·하네스규칙의 세 헌장이 전체 작업의 역할·권한·검증·문서 규칙 경계를 이룬다. 상위 사용자 의도에 따라 메인이 과업별로 각 도구의 사용/미사용·순서·입출력을 정한다. 개선 방향의 harness2는 후보 제안·탐색·대조/조합·선택·회고를 근거로 지원하는 Google Harness² 방법의 독립 구현이며 실제 워커 실행기나 최종 수용자가 아니다. 선택 가능한 수단은 code-review의 신규 결함 검토, rust-repack의 Rust 변환, pr-review-toolkit의 관점별 검토, deepeval-pack의 LLM Judge 평가, skillevaluator의 스킬 품질·안전·효과 측정 및 기타 필요한 독립 도구다. 각 도구는 독립 기동과 명확한 책임을 갖는다. 기반은 실행·운영 제어 계열의 worker-agent-control(워커 연결·요청·실행 결과 인수)과 progress-monitor(캠페인 gate·단계 위임·정체 감시·방향 조정), 문서 근거의 wiki-desk(문서 근거 조회·입고)다. 기반 도구는 각각 독립 책임이며 서로 자동 호출하는 관계가 아니다. 세 책임층은 필수 직렬 실행 체인이 아니며 공통 플러그인 API나 활성화 UI가 구현되었다는 뜻도 아니다. 개별 스킬을 헌장이나 자동 엔진으로 표현하지 않는다.</desc>
+  <rect width="1100" height="880" fill="#f5f4ed"/>
   <text x="44" y="54" font-size="30" font-weight="700" fill="#1B365D">방향·수단·기반을 분리하는 도구 구성</text>
   <text x="44" y="104" font-size="26" font-weight="600">사용자 의도 → 메인의 선택</text>
   <text x="1056" y="104" text-anchor="end" font-size="22" fill="#504e49">사용/미사용 · 순서 · 입출력 결정</text>
-  <rect x="36" y="135" width="1028" height="609" fill="none" stroke="#504e49" stroke-width="1.5"/>
+  <rect x="36" y="135" width="1028" height="710" fill="none" stroke="#504e49" stroke-width="1.5"/>
   <rect x="37" y="136" width="1026" height="98" fill="#faf9f5"/>
-  <path d="M 36 234 H 1064 M 60 385 H 1040 M 60 572 H 1040" fill="none" stroke="#e8e6dc" stroke-width="2"/>
+  <path d="M 36 234 H 1064 M 60 385 H 1040 M 60 622 H 1040" fill="none" stroke="#e8e6dc" stroke-width="2"/>
   <text x="60" y="174" font-size="26" font-weight="700" fill="#1B365D">세 헌장: 작업수행규칙 · 문서발행규칙 · 하네스규칙</text>
   <text x="60" y="212" font-size="22" fill="#504e49">전체 작업의 역할 · 권한 · 검증 · 문서 규칙 경계</text>
   <text x="60" y="280" font-size="26" font-weight="700" fill="#1B365D">개선 방향</text>
@@ -17,18 +17,25 @@
   <text x="248" y="361" font-size="22" fill="#504e49">워커 실행 · 최종 수용은 별도 책임</text>
   <text x="60" y="418" font-size="26" font-weight="700" fill="#1B365D">선택 수단</text>
   <text x="248" y="418" font-weight="600">code-review</text>
-  <text x="248" y="488" font-size="22" fill="#504e49">신규 결함 검토</text>
-  <text x="452" y="418" font-weight="600">rust-repack</text>
-  <text x="452" y="488" font-size="22" fill="#504e49">Rust 변환</text>
-  <text x="640" y="418" font-weight="600">deepeval-pack</text>
-  <text x="640" y="488" font-size="22" fill="#504e49">LLM Judge 평가</text>
-  <text x="850" y="418" font-weight="600"><tspan x="850" dy="0">pr-review-</tspan><tspan x="850" dy="31">toolkit</tspan></text>
-  <text x="850" y="488" font-size="22" fill="#504e49">관점별 검토</text>
-  <text x="248" y="531" font-size="22" fill="#504e49">기타 독립 도구 · 각 도구는 독립 기동과 명확한 책임</text>
-  <text x="60" y="618" font-size="26" font-weight="700" fill="#1B365D">기반</text>
-  <text x="248" y="618" font-size="26" font-weight="600">worker-agent-control</text>
-  <text x="248" y="660">워커 연결 · 실행 결과 인수</text>
-  <text x="692" y="618" font-size="26" font-weight="600">wiki-desk</text>
-  <text x="692" y="660">문서 근거 조회 · 입고</text>
-  <text x="248" y="714" font-size="22" fill="#504e49">두 기반 도구는 각각 독립 책임</text>
+  <text x="248" y="452" font-size="22" fill="#504e49">신규 결함 검토</text>
+  <text x="520" y="418" font-weight="600">rust-repack</text>
+  <text x="520" y="452" font-size="22" fill="#504e49">Rust 변환</text>
+  <text x="780" y="418" font-weight="600">pr-review-toolkit</text>
+  <text x="780" y="452" font-size="22" fill="#504e49">관점별 검토</text>
+  <text x="248" y="510" font-weight="600">deepeval-pack</text>
+  <text x="248" y="544" font-size="22" fill="#504e49">LLM Judge 평가</text>
+  <text x="520" y="510" font-weight="600">skillevaluator</text>
+  <text x="520" y="544" font-size="22" fill="#504e49">스킬 품질 · 안전 · 효과 측정</text>
+  <text x="248" y="596" font-size="22" fill="#504e49">기타 독립 도구 · 각 도구는 독립 기동과 명확한 책임</text>
+  <text x="60" y="660" font-size="26" font-weight="700" fill="#1B365D">기반</text>
+  <text x="60" y="702" font-size="20" fill="#1B365D">실행·운영 제어</text>
+  <path d="M 232 684 V 754" fill="none" stroke="#1B365D" stroke-width="3"/>
+  <text x="248" y="706" font-size="26" font-weight="600">worker-agent-control</text>
+  <text x="590" y="706" font-size="22">워커 연결 · 요청 · 실행 결과 인수</text>
+  <text x="248" y="748" font-size="26" font-weight="600">progress-monitor</text>
+  <text x="590" y="748" font-size="22">캠페인 gate · 단계 위임 · 정체 감시</text>
+  <text x="60" y="796" font-size="20" fill="#1B365D">문서 근거</text>
+  <text x="248" y="796" font-size="26" font-weight="600">wiki-desk</text>
+  <text x="590" y="796" font-size="22">문서 근거 조회 · 입고</text>
+  <text x="248" y="830" font-size="20" fill="#504e49">기반 도구는 각각 독립 책임 · 서로 자동 호출하지 않음</text>
 </svg>

@@ -33,17 +33,17 @@ repack_val_agent는 코드베이스·스킬·MCP·플러그인 등의 **개선�
 
 개선 목표는 과업마다 다릅니다. 어떤 과업에는 Rust 변환이, 다른 과업에는 결함 검토나 LLM 답변 평가가 필요합니다. repack_val_agent는 **개선 방향을 다루는 도구**, **선택 가능한 수단 도구**, **작업을 받치는 기반 도구**를 구분해 조합합니다.
 
-기반은 **`wiki-desk`와 `worker-agent-control` 두 도구**로 유지하고, 수단 도구는 과업에 맞게 교체·추가합니다. 오래 걸리는 과업에는 캠페인 운영 도구인 `progress-monitor`가 더해집니다([아래](#오래-걸리는-개선은-캠페인으로-나눠-이어-갑니다)). 도구 간 구체적인 연결은 메인 오케스트레이터가 맡습니다.
+기반은 과업이 바뀌어도 유지하는 도구입니다. **실행·운영 제어** 계열인 `worker-agent-control`과 `progress-monitor`, **문서 근거**인 `wiki-desk`가 여기에 속합니다. `worker-agent-control`이 워커 한 번의 위임·실행·결과 인수를 다룬다면, `progress-monitor`는 그 위임이 여러 항목·단계로 길게 이어질 때 검증 묶음의 gate·단계 위임·정체 감시로 흐름을 제어합니다([아래](#오래-걸리는-개선은-캠페인으로-나눠-이어-갑니다)). 수단 도구는 과업에 맞게 교체·추가합니다. 도구 간 구체적인 연결은 메인 오케스트레이터가 맡습니다.
 
-![harness2가 개선 후보와 비교·회고를 지원하고, 메인이 독립적인 수단 도구를 선택합니다. worker-agent-control과 wiki-desk는 실행 연결과 문서 근거를 받치며, 세 헌장이 작업·문서·하네스의 공통 규칙을 정합니다.](assets/skill-layers.svg)
+![harness2가 개선 후보와 비교·회고를 지원하고, 메인이 독립적인 수단 도구를 선택합니다. worker-agent-control·progress-monitor는 실행·운영 제어를, wiki-desk는 문서 근거를 받치며, 세 헌장이 작업·문서·하네스의 공통 규칙을 정합니다.](assets/skill-layers.svg)
 
 | 구분 | 도구 | 책임 |
 |---|---|---|
 | **개선 방향** | [harness2](skills/harness2/SKILL.md) | 무엇을 바꿔 볼지 제안하고, 후보의 탐색·대조·조합·선택·회고를 근거와 연결합니다. |
-| **선택 가능한 수단** | `code-review` · `rust-repack` · `deepeval-pack` · `pr-review-toolkit` 등 | 이번 개선에 필요한 변환·검토·평가를 각자의 책임 범위에서 수행합니다. |
-| **기반** | [worker-agent-control](skills/worker-agent-control/SKILL.md) | 대상 워커를 연결하고, 요청·실행·결과 인수를 다룹니다. |
-| **기반** | [wiki-desk](skills/wiki-desk/SKILL.md) | 프로젝트 문서의 원문 근거를 찾고, 새 기록을 포인터 위키에 입고합니다. |
-| **캠페인 운영** | [progress-monitor](skills/progress-monitor/SKILL.md) | 오래 걸리는 과업에서 검증 묶음의 gate와 영수증, 단계 위임, 정체 감시, 방향 조정을 다룹니다. |
+| **선택 가능한 수단** | `code-review` · `rust-repack` · `pr-review-toolkit` · `deepeval-pack` · `skillevaluator` 등 | 이번 개선에 필요한 변환·검토·평가를 각자의 책임 범위에서 수행합니다. |
+| **기반: 실행·운영 제어** | [worker-agent-control](skills/worker-agent-control/SKILL.md) | 대상 워커를 연결하고, 요청·실행·결과 인수를 다룹니다. |
+| **기반: 실행·운영 제어** | [progress-monitor](skills/progress-monitor/SKILL.md) | 오래 걸리는 과업에서 검증 묶음의 gate와 영수증, 단계 위임, 정체 감시, 방향 조정을 다룹니다. |
+| **기반: 문서 근거** | [wiki-desk](skills/wiki-desk/SKILL.md) | 프로젝트 문서의 원문 근거를 찾고, 새 기록을 포인터 위키에 입고합니다. |
 
 ### 수단 도구는 독립적으로 기동하고, 과업에서 조합합니다
 
@@ -53,8 +53,13 @@ repack_val_agent는 코드베이스·스킬·MCP·플러그인 등의 **개선�
 |---|---|---|
 | [code-review](skills/code-review/SKILL.md) | PR이나 로컬 변경의 신규 결함을 찾을 때 | 근거를 재검증해 엄선한 결함·규칙 위반 |
 | [rust-repack](skills/rust-repack/SKILL.md) | 다른 언어의 로직 또는 기존 Rust를 개선할 때 | 외부 동작을 보존하는 Rust 변환·리팩토링과 자체검사 |
-| `deepeval-pack` (별도 설치) | 답변·검색 문맥·기대 답변을 평가할 때 | 설정한 Judge·메트릭에 따른 케이스별 평가 결과 |
 | [pr-review-toolkit](skills/pr-review-toolkit/SKILL.md) | 테스트·주석·오류 처리·타입·품질 등 여러 관점을 검토할 때 | 선택한 관점의 검토 결과 |
+| [deepeval-pack](skills/deepeval-pack/SKILL.md) | 답변·검색 문맥·기대 답변을 평가할 때 | 설정한 Judge·메트릭에 따른 케이스별 점수·이유·오류 |
+| [skillevaluator](skills/skillevaluator/SKILL.md) | 스킬의 형식·안전·품질을 점검하거나, 스킬이 있을 때와 없을 때의 에이전트 결과를 비교할 때 | 단계(Tier)별 점수·판정·발견 사항과 실행하지 않은 범위 |
+
+`deepeval-pack`은 스킬 안의 `config.yaml`을 knob로 씁니다. `judge_profile`(provider·model·생성 설정)과 `metrics`(`{type, params}` 목록, 같은 메트릭을 다른 파라미터로 여러 번 사용 가능)를 이 파일에서 정하고, 설정은 요청마다 다시 읽습니다. 배포되는 것은 `config.example.yaml`이며 활성 `config.yaml`은 로컬에 둡니다. 계약은 [설정·입력 계약](skills/deepeval-pack/references/config.md)에 있습니다. `skillevaluator`는 [NVIDIA SkillEvaluator](https://github.com/NVIDIA/SkillEvaluator)의 스킬 정의를 출처·라이선스와 함께 들인 것이며, CLI는 따로 설치합니다.
+
+두 평가 도구의 API 키는 프로젝트 루트 `envs/`에 둡니다. 키 이름은 [envs/.env.example](envs/.env.example)에 있고, 실제 `envs/.env`는 Git·공개본에 넣지 않습니다. `deepeval-pack`의 MCP 서버는 기동할 때 이 파일에서 선택한 provider의 키를 읽습니다. 규칙은 [하네스규칙의 권한](rules/harness.md#권한)에 있습니다.
 
 예를 들어 동작 보존이 목표인 Rust 전환 과업에서는 `rust-repack`의 결과를 별도 검토에 넘길 수 있고, 검색·답변 품질 과업에서는 `deepeval-pack`을 평가 수단으로 선택할 수 있습니다. 구체적인 조합은 과업에서 정합니다. **한 도구의 완료는 그 도구가 맡은 범위의 완료**이며, 전체 개선의 완료는 메인이 합의한 기준과 실제 근거로 확인합니다.
 
@@ -128,6 +133,7 @@ repack_val_agent는 코드베이스·스킬·MCP·플러그인 등의 **개선�
 | [campaigns/](campaigns/) | 오래 걸리는 개선 과업을 항목과 단계로 나누는 규약과 틀 |
 | `scripts/check_campaign.py` | 캠페인의 틀과 인스턴스 형식을 읽기 전용으로 검사 |
 | [skills/progress-monitor](skills/progress-monitor/SKILL.md) | 캠페인의 운영 규칙과 실행기: 검증 묶음의 gate, 검사 결과의 재사용, 정체 감시, 방향 조정 |
+| `envs/` | 스킬이 쓰는 API 키(로컬 전용). [.env.example](envs/.env.example)의 키 이름만 추적 |
 | [__llm-wiki/](__llm-wiki/) | 로컬 포인터 위키를 만들 계약·용어집 |
 | `repack_target/` | 로컬 개선 대상과 최종 산출물을 준비할 공간 |
 | [PUBLICATION.md](PUBLICATION.md) | 공개 범위와 공개본 생성 절차 |
@@ -171,7 +177,15 @@ python3 scripts/check_campaign.py
 python3 -B -m unittest discover -s skills/progress-monitor/tests
 ```
 
-DeepEval 기반 평가를 선택한다면 `deepeval-pack`을 별도로 준비하고 해당 스킬의 설치·MCP 등록 지침을 확인합니다. Judge provider/model과 활성 설정·인증 정보는 각 작업 공간에서 준비합니다.
+DeepEval 기반 평가를 선택한다면 `deepeval-pack`의 의존성을 스킬 폴더에 설치하고 활성 설정과 키를 준비한 뒤, [로컬 설치](skills/deepeval-pack/references/installation.md)의 MCP 등록을 따릅니다. Judge provider/model은 각 작업 공간에서 정하며 스킬이 기본값을 채우지 않습니다.
+
+```bash
+(cd skills/deepeval-pack && uv sync --frozen && cp -n config.example.yaml config.yaml)
+cp -n envs/.env.example envs/.env   # 사용할 키만 채웁니다
+skills/deepeval-pack/.venv/bin/python -B skills/deepeval-pack/scripts/run.py check
+```
+
+스킬 평가를 선택한다면 SkillEvaluator CLI를 설치하고 [skillevaluator](skills/skillevaluator/SKILL.md)의 순서대로 키 없이 되는 Tier 1부터 실행합니다.
 
 ## 문서 작성과 배포 경계
 

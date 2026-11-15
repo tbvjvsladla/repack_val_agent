@@ -1,0 +1,20 @@
+# Copy to config.yaml; edit with an agent in a later session.
+judge_profile:
+  provider: null # anthropic | openai | google (alias: gemini) | deepseek
+  model: null
+  settings: {}
+  # settings:
+  #   temperature: <number supported by your model>
+  #   generation_kwargs: {<provider-native generation option>: <value>}
+  #   cost_per_input_token: <optional SDK metadata for unlisted models>
+  #   cost_per_output_token: <optional SDK metadata for unlisted models>
+metrics:
+  - type: ContextualRecallMetric
+    params:
+      threshold: 0.5
+      include_reason: true
+  - type: FaithfulnessMetric
+    params:
+      threshold: 0.5
+      include_reason: true
+

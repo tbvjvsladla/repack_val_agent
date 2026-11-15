@@ -23,8 +23,8 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 WORKER_CONFIG = "skills/worker-agent-control/config.json"
 SKILLS = {
-    "code-review", "harness2", "pr-review-toolkit", "progress-monitor", "rust-repack",
-    "wiki-desk", "worker-agent-control",
+    "code-review", "deepeval-pack", "harness2", "pr-review-toolkit", "progress-monitor",
+    "rust-repack", "skillevaluator", "wiki-desk", "worker-agent-control",
 }
 RULES = {"workflow.md", "docs.md", "harness.md"}
 ADAPTER_DIRS = (".agents/skills", ".claude/skills")
@@ -34,6 +34,7 @@ TOP_FILES = {
     "scripts/check_harness_adapters.py", "scripts/check_campaign.py",
     "campaigns/README.md", "campaigns/_template/campaign.json", ".claude/settings.json",
     "__llm-wiki/.gitignore", "__llm-wiki/contract.json", "__llm-wiki/glossary.json",
+    "envs/.env.example",
 }
 PRIVATE_PARTS = {
     ".git", "__pycache__", "node_modules", ".cache", ".pytest_cache",
@@ -64,7 +65,10 @@ def allowed(path: str) -> bool:
     p = Path(path)
     if p.is_absolute() or ".." in p.parts or set(p.parts) & PRIVATE_PARTS:
         return False
-    if path == WORKER_CONFIG or any(fnmatch.fnmatch(p.name, x) for x in PRIVATE_NAMES):
+    if path == WORKER_CONFIG:
+        return False
+    # The key-name example is the one listed exception to the credential patterns.
+    if path not in TOP_FILES and any(fnmatch.fnmatch(p.name, x) for x in PRIVATE_NAMES):
         return False
     if path in TOP_FILES:
         return True
@@ -80,7 +84,7 @@ def allowed(path: str) -> bool:
     if len(p.parts) > 2 and p.parts[0] == "skills":
         return p.parts[1] in SKILLS and (
             p.suffix in {".md", ".mjs", ".ts", ".py", ".json", ".yaml", ".yml", ".toml"}
-            or p.name in {"LICENSE", ".gitignore", ".gitattributes"}
+            or p.name in {"LICENSE", ".gitignore", ".gitattributes", "uv.lock"}
         )
     return False
 
@@ -133,8 +137,9 @@ def environment_replacements() -> dict[str, str]:
     if path.is_symlink():
         raise ValueError("Symlink worker config rejected")
     if path.exists():
-        workspace = Path(json.loads(path.read_text(encoding="utf-8"))["workspace"])
-        if workspace.is_absolute():
+        connected = json.loads(path.read_text(encoding="utf-8")).get("workspace")
+        workspace = Path(connected) if connected else Path()
+        if connected and workspace.is_absolute():
             replacements[str(workspace)] = "/workspace/target_project"
         if workspace.name and workspace.name not in {"target_project", ROOT.name}:
             replacements[workspace.name] = "target_project"

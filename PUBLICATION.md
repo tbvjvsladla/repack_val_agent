@@ -2,12 +2,14 @@
 
 | 구분 | 처리 |
 |---|---|
-| AGENTS.md·CLAUDE.md, 세 헌장(rules/), 일곱 스킬(skills/)과 내부 테스트, 하네스 어댑터 링크·`.claude/settings.json` | 공개. 기존 라이선스·출처 보존 |
+| AGENTS.md·CLAUDE.md, 세 헌장(rules/), 아홉 스킬(skills/)과 내부 테스트, 하네스 어댑터 링크·`.claude/settings.json` | 공개. 기존 라이선스·출처 보존 |
 | docs의 역할별 doc_gen_guide.md | 문서의 용도·작성 방식·예시만 공개 |
 | docs에 생성된 과업 문서 | 로컬 보존, Git 추적·공개본 제외 |
 | campaigns의 README.md와 _template, scripts/check_campaign.py | 캠페인의 규약·틀·형식 검사를 공개. 운영 규칙과 실행기는 skills/progress-monitor에 있음 |
 | campaigns의 인스턴스와 ACTIVE | 로컬 보존, Git 추적·공개본 제외 |
 | 위키 contract.json·glossary.json·.gitignore | 재사용할 설정으로 공개 |
+| envs/.env.example, 스킬의 config.example.yaml·uv.lock | 키 이름과 설정 예시·잠긴 의존성 목록만 공개 |
+| envs의 실제 키 파일, 스킬의 활성 config.yaml·.venv | 로컬 보존, Git 추적·공개본 제외 |
 | 위키 카드·index·log·receipt·archive·캐시 | 로컬 보존, Git 추적·공개본 제외 |
 | PUBLIC_EXPORT.json | 공개 후보마다 새로 생성, 원본 Git 추적 제외 |
 | 실제 외부 프로젝트 소스, seed, temp, 루트 tests | 제외 |

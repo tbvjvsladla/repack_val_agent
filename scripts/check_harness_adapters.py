@@ -122,7 +122,9 @@ def live_files(root: Path) -> list[Path]:
     files += sorted(p for p in (root / "skills").rglob("*")
                     if p.is_file() and p.suffix in {".md", ".yaml", ".yml", ".ts", ".mjs", ".js", ".py", ".json"}
                     and p.name != "PACKAGE_MANIFEST.json"
-                    and "fixtures" not in p.parts and "tests" not in p.parts)
+                    and "fixtures" not in p.parts and "tests" not in p.parts
+                    # Installed third-party environments are not harness wording.
+                    and not {".venv", "node_modules", "__pycache__"} & set(p.parts))
     files += sorted(p for p in (root / "scripts").glob("*.py") if p.name != Path(__file__).name)
     return [p for p in files if p.is_file()]
 

@@ -1,0 +1,27 @@
+[project]
+name = "local-deepeval-pack"
+version = "0.2.0"
+description = "Configurable local DeepEval evaluation tools over stdio MCP"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "deepeval==4.3.2",
+  "mcp==2.3.0",
+  "anthropic==2.3.0",
+  "google-genai==2.34.0",
+  "openai==3.42.0",
+  "pydantic==2.14.2",
+  "python-dotenv==1.2.2",
+  "PyYAML==6.0.3",
+]
+
+[dependency-groups]
+dev = ["mypy>=1.19,<2", "types-PyYAML>=6.0"]
+
+[[tool.mypy.overrides]]
+module = ["deepeval.*", "mcp.*", "dotenv"]
+ignore_missing_imports = true
+
+[tool.mypy]
+files = ["scripts", "src"]
+check_untyped_defs = true
+

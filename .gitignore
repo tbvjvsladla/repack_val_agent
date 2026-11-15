@@ -26,6 +26,10 @@
 /.codex/hooks.json
 /skills/worker-agent-control/config.json
 
+# Project keys live in envs/; only the key-name example is tracked.
+/envs/*
+!/envs/.env.example
+
 # Credentials and local overrides at any depth.
 .env
 .env.*

@@ -1,0 +1,8 @@
+/config.yaml
+/.venv/
+/.deepeval/
+/.ruff_cache/
+/.mypy_cache/
+__pycache__/
+*.pyc
+

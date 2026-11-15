@@ -122,7 +122,8 @@ def main() -> int:
     config = json.loads((SKILL / "config.json").read_text())
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--provider", choices=["claude", "codex"], default=config["default_provider"])
-    parser.add_argument("--workspace", type=Path, default=Path(config["workspace"]))
+    connected = config.get("workspace")
+    parser.add_argument("--workspace", type=Path, default=Path(connected) if connected else None)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--timeout", type=int, default=config["discovery_timeout_seconds"])
     parser.add_argument("--codex-permissions", choices=["read-only", "inherit"], default="read-only",
@@ -132,6 +133,8 @@ def main() -> int:
         parser.error("--timeout must be positive")
     if args.provider != "codex" and args.codex_permissions != "read-only":
         parser.error("--codex-permissions is only applicable to --provider codex")
+    if args.workspace is None:
+        parser.error("no worker is connected: config.json workspace is null; set it or pass --workspace")
     workspace = args.workspace.resolve()
     output = args.output_dir.resolve()
     if output == workspace or workspace in output.parents:
