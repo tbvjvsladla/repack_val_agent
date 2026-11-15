@@ -1,6 +1,7 @@
 """Load the public configuration contract without creating a Judge."""
 
 from pathlib import Path
+import re
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
@@ -82,13 +83,65 @@ class Configuration(BaseModel):
     metrics: list[MetricSpec] = Field(min_length=1)
 
 
-def load_config(path: Path) -> Configuration:
-    """Read YAML without evaluating tags or resolving external model profiles."""
+Provider = Literal["anthropic", "openai", "google", "gemini", "deepseek"]
+PROFILE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.ya?ml$")
+
+
+class ProfileFile(BaseModel):
+    """A shared Judge profile in envs/: model and generation settings, no credentials."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+    provider: Provider | None = None
+    model: str = Field(min_length=1)
+    settings: JudgeSettings = Field(default_factory=JudgeSettings)
+
+
+class SkillConfig(BaseModel):
+    """The on-disk config.yaml: two Judge knobs and the metric list."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+    provider: Provider | None = None
+    judge_profile: str | None = None
+    metrics: list[MetricSpec] = Field(min_length=1)
+
+
+def _read_yaml(path: Path, what: str) -> object:
     try:
-        payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+        return yaml.safe_load(path.read_text(encoding="utf-8"))
     except (OSError, yaml.YAMLError) as error:
-        message = (
-            "Cannot read config.yaml; copy config.example.yaml and check YAML syntax"
+        raise ConfigurationError(f"Cannot read {what}; check the file and its YAML syntax") from error
+
+
+def load_profile(envs_dir: Path, name: str) -> ProfileFile:
+    """Read envs/<name>; only a plain file name inside envs/ is accepted."""
+    if not PROFILE_NAME.match(name):
+        raise ConfigurationError("judge_profile must be a file name in envs/, e.g. opus_profile.yaml")
+    path = (envs_dir / name).resolve()
+    if path.parent != envs_dir.resolve() or not path.is_file():
+        raise ConfigurationError(f"Judge profile not found in envs/: {name}")
+    return ProfileFile.model_validate(_read_yaml(path, f"envs/{name}"))
+
+
+def load_config(path: Path, envs_dir: Path) -> Configuration:
+    """Read config.yaml and adapt its provider + envs profile into the Judge contract."""
+    payload = _read_yaml(path, "config.yaml; copy config.example.yaml")
+    if isinstance(payload, dict) and isinstance(payload.get("judge_profile"), dict):
+        raise ConfigurationError(
+            "Inline judge_profile is no longer read; move model/settings to envs/<name>_profile.yaml "
+            "and set provider and judge_profile in config.yaml"
         )
-        raise ConfigurationError(message) from error
-    return Configuration.model_validate(payload)
+    skill = SkillConfig.model_validate(payload)
+    profile: dict[str, object] = {"provider": skill.provider}
+    if skill.judge_profile is not None:
+        loaded = load_profile(envs_dir, skill.judge_profile)
+        aliases = {"gemini": "google"}
+        if (
+            loaded.provider is not None
+            and skill.provider is not None
+            and aliases.get(loaded.provider, loaded.provider) != aliases.get(skill.provider, skill.provider)
+        ):
+            raise ConfigurationError(
+                f"Profile {skill.judge_profile} is for {loaded.provider}, config provider is {skill.provider}"
+            )
+        profile.update(model=loaded.model, settings=loaded.settings)
+    return Configuration(judge_profile=JudgeProfile.model_validate(profile), metrics=skill.metrics)

@@ -8,13 +8,15 @@
 | campaigns의 README.md와 _template, scripts/check_campaign.py | 캠페인의 규약·틀·형식 검사를 공개. 운영 규칙과 실행기는 skills/progress-monitor에 있음 |
 | campaigns의 인스턴스와 ACTIVE | 로컬 보존, Git 추적·공개본 제외 |
 | 위키 contract.json·glossary.json·.gitignore | 재사용할 설정으로 공개 |
-| envs/.env.example, 스킬의 config.example.yaml·uv.lock | 키 이름과 설정 예시·잠긴 의존성 목록만 공개 |
-| envs의 실제 키 파일, 스킬의 활성 config.yaml·.venv | 로컬 보존, Git 추적·공개본 제외 |
+| envs/.env.example·profile.example.yaml, 스킬의 config.example.yaml·uv.lock | 키 이름·프로필 형식·설정 예시·잠긴 의존성 목록만 공개 |
+| envs의 실제 키·프로필 파일, 스킬의 활성 config.yaml·.venv | 로컬 보존, Git 추적·공개본 제외 |
+| opt-in 스킬(deepeval-pack, skillevaluator)의 발견 링크 | 공개본에 넣지 않음. 비활성 상태로 배포하고 받은 쪽에서 `scripts/skill_activation.py`로 켬 |
 | 위키 카드·index·log·receipt·archive·캐시 | 로컬 보존, Git 추적·공개본 제외 |
 | PUBLIC_EXPORT.json | 공개 후보마다 새로 생성, 원본 Git 추적 제외 |
 | 실제 외부 프로젝트 소스, seed, temp, 루트 tests | 제외 |
 | 개인 Codex 설정, 하네스별 로컬 설정과 로컬 훅, 실제 worker config, 인증·비밀값 | 제외. 워커 설정과 훅 설치는 예시만 제공 |
 | 원시 stdout/stderr, 모델 응답·실행 상태, 캐시·Ouroboros 데이터 | 제외 |
+| `scripts/skill_activation.py` | 공개. opt-in 스킬의 켜기·끄기 |
 | 원본 .git와 과거 커밋·작성자 정보 | 제외. 공개본에서 새 이력 시작 |
 
 루트 `/seed/`는 항상 Git 추적과 공개본에서 제외합니다. `skills/*/tests/`는 설치 스킬의 재현 가능한 내부 검사이므로 포함합니다. 루트 `/tests/`와 구분합니다.

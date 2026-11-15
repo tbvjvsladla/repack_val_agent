@@ -49,7 +49,7 @@ def build_server(config_path: Path, env_file: Path) -> MCPServer:
             return {
                 "status": "ok",
                 **catalog,
-                **engine.validate_config(load_config(config_path)),
+                **engine.validate_config(load_config(config_path, env_file.parent)),
             }
         except (ConfigurationError, ValidationError) as error:
             return {**catalog, **_failure(error)}
@@ -58,7 +58,7 @@ def build_server(config_path: Path, env_file: Path) -> MCPServer:
     def deepeval_validate(cases: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         """Validate config and optional input cases locally, without a Judge API call."""
         try:
-            config = load_config(config_path)
+            config = load_config(config_path, env_file.parent)
             status = engine.validate_config(config)
             errors = engine.validate_cases(config, cases) if cases is not None else []
         except (ConfigurationError, ValidationError) as error:
@@ -73,7 +73,7 @@ def build_server(config_path: Path, env_file: Path) -> MCPServer:
     async def deepeval_evaluate(cases: list[dict[str, Any]]) -> dict[str, Any]:
         """Evaluate supplied cases with the configured Judge. Sends case text to its provider."""
         try:
-            return await engine.evaluate(load_config(config_path), cases, env_file)
+            return await engine.evaluate(load_config(config_path, env_file.parent), cases, env_file)
         except Exception as error:  # noqa: BLE001 - MCP returns a bounded error without leaking SDK credentials.
             return _failure(error)
 

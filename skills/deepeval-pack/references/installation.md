@@ -1,12 +1,25 @@
 # 프로젝트 로컬 설치
 
+## 활성화
+
+이 스킬은 비활성 상태로 배포된다. 스킬 발견 링크(`.agents/skills`, `.claude/skills`)와 활성 `config.yaml`, `.venv`가 없고 MCP도 등록되어 있지 않다. 사용자가 쓰기로 정하면 프로젝트 루트에서 켠다.
+
+```bash
+python3 scripts/skill_activation.py enable deepeval-pack           # 무엇을 만들지 보기
+python3 scripts/skill_activation.py enable deepeval-pack --apply   # 링크 2개 + config.yaml(없을 때만)
+```
+
+끌 때는 `disable deepeval-pack --apply`로 링크만 지운다. config·프로필·키·`.venv`는 남는다. MCP 등록은 따로 해제한다.
+
+## 의존성
+
 Python 3.12/3.13과 uv가 필요하다. 스킬 폴더(`<skill-dir>`, 이 저장소에서는 정본 `skills/deepeval-pack`)에서 `uv sync --frozen`으로 잠긴 의존성을 설치한다. DeepEval 4.3.2, MCP Python SDK 2.3.0 및 네 provider SDK를 고정한다. MCP v2의 MCPServer를 사용한다. `.venv`는 머신·아키텍처에 묶이므로 다른 머신의 것을 복사하지 않고 그 자리에서 다시 만든다.
 
 config.yaml이 없을 때만 config.example.yaml을 복사한다. 기존 활성 설정을 덮어쓰지 않는다.
 
 ## envs 폴더
 
-API 키는 프로젝트 루트의 `envs/.env`에 둔다. 키 이름은 `envs/.env.example`에 있다. 이미 설정된 프로세스 환경변수가 먼저이고, 없을 때만 이 파일에서 선택한 provider의 키 하나를 읽는다. `envs/` 아래의 실제 키 파일과 활성 config는 Git·공개본에 넣지 않는다.
+Judge 프로필은 프로젝트 루트의 `envs/<name>_profile.yaml`에 둔다(형식: `envs/profile.example.yaml`). config.yaml의 `provider`와 `judge_profile`이 이 파일을 가리킨다. API 키는 `envs/.env`에 둔다(키 이름: `envs/.env.example`). 이미 설정된 프로세스 환경변수가 먼저이고, 없을 때만 이 파일에서 선택한 provider의 키 하나를 읽는다. 프로필은 `--env-file`이 가리키는 파일과 같은 폴더에서 찾는다. `envs/` 아래의 실제 키·프로필 파일과 활성 config는 Git·공개본에 넣지 않는다.
 
 프로젝트 루트는 스킬 폴더 위치로 정한다.
 

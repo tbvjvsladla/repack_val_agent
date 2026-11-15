@@ -34,7 +34,7 @@ TOP_FILES = {
     "scripts/check_harness_adapters.py", "scripts/check_campaign.py",
     "campaigns/README.md", "campaigns/_template/campaign.json", ".claude/settings.json",
     "__llm-wiki/.gitignore", "__llm-wiki/contract.json", "__llm-wiki/glossary.json",
-    "envs/.env.example",
+    "envs/.env.example", "envs/profile.example.yaml", "scripts/skill_activation.py",
 }
 PRIVATE_PARTS = {
     ".git", "__pycache__", "node_modules", ".cache", ".pytest_cache",
@@ -114,11 +114,20 @@ def source_files() -> dict[str, bytes]:
     return sources
 
 
+OPT_IN = re.compile(r"^\s+activation:\s*[\"']?opt-in[\"']?\s*$", re.M)
+
+
+def opt_in(skill: str) -> bool:
+    """Opt-in skills ship inactive: no discovery links in the export."""
+    text = (ROOT / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
+    return text.startswith("---\n") and bool(OPT_IN.search(text[4:text.find("\n---", 4)]))
+
+
 def adapter_links() -> dict[str, str]:
-    """Return every skill discovery adapter as {path: target}; each must point at its canonical skill."""
+    """Return every always-on skill's discovery adapter as {path: target}; opt-in skills get none."""
     links = {}
     for base in ADAPTER_DIRS:
-        for skill in sorted(SKILLS):
+        for skill in sorted(s for s in SKILLS if not opt_in(s)):
             rel = f"{base}/{skill}"
             path = ROOT / rel
             expected = f"../../skills/{skill}"

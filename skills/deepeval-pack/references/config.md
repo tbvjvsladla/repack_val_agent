@@ -1,12 +1,35 @@
 # 설정과 입력 계약
 
-`config.example.yaml`은 배포 예시이고 `config.yaml`은 Git/공개본에서 제외되는 활성 설정이다. provider/model은 설치 시 null이다. 값 변경은 다음 MCP 요청부터 반영된다.
+`config.example.yaml`은 배포 예시이고 `config.yaml`은 Git/공개본에서 제외되는 활성 설정이다. provider·judge_profile은 설치 시 null이다. config와 프로필의 변경은 다음 MCP 요청부터 반영된다.
 
 ## Judge Knob
 
-`judge_profile.provider`: anthropic / openai / google / deepseek. gemini는 google의 별칭이다.
-`judge_profile.model`: 사용자가 선택한 실제 모델 ID. 외부 프로필 경로나 암묵적 기본 모델은 없다.
-`judge_profile.settings`:
+config.yaml의 Judge knob은 두 개다.
+
+```yaml
+provider: deepseek                          # anthropic / openai / google / deepseek (gemini는 google의 별칭)
+judge_profile: deepseek_flash_profile.yaml  # 프로젝트 envs/ 안의 파일 이름
+```
+
+`judge_profile`은 경로가 아닌 파일 이름이다(`envs/` 밖, 하위 폴더, 숨김 파일은 거부). 팩은 이 파일을 읽어 Judge로 바꾼다(어댑터). 프로필 형식은 프로젝트의 공용 형식이다(`envs/profile.example.yaml`).
+
+```yaml
+# envs/deepseek_flash_profile.yaml
+provider: deepseek        # 선택. 적으면 config의 provider와 같아야 한다
+model: deepseek-flash     # 사용자가 선택한 실제 모델 ID. 암묵적 기본 모델은 없다
+settings:
+  temperature: 0.0
+  generation_kwargs:
+    reasoning_effort: low
+    max_tokens: 32768
+    extra_body:
+      thinking:
+        type: enabled
+```
+
+프로필에는 provider·model·settings만 둘 수 있다. 키 값은 넣지 않는다. 예전처럼 config.yaml 안에 judge_profile 매핑을 적으면 프로필 파일로 옮기라는 오류로 거부한다.
+
+프로필의 `settings`:
 
 | 필드 | 의미 |
 | --- | --- |

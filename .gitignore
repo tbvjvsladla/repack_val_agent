@@ -26,9 +26,16 @@
 /.codex/hooks.json
 /skills/worker-agent-control/config.json
 
-# Project keys live in envs/; only the key-name example is tracked.
+# Project keys and Judge profiles live in envs/; only the examples are tracked.
 /envs/*
 !/envs/.env.example
+!/envs/profile.example.yaml
+
+# Opt-in skills ship inactive; scripts/skill_activation.py lays these links locally.
+/.agents/skills/deepeval-pack
+/.claude/skills/deepeval-pack
+/.agents/skills/skillevaluator
+/.claude/skills/skillevaluator
 
 # Credentials and local overrides at any depth.
 .env

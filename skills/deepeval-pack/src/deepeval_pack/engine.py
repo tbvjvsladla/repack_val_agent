@@ -132,9 +132,9 @@ def validate_config(config: Configuration) -> dict[str, Any]:
         selected.append({"type": spec.type, "required_fields": list(required)})
     missing = []
     if config.judge_profile.provider is None:
-        missing.append("judge_profile.provider")
+        missing.append("provider")
     if config.judge_profile.model is None:
-        missing.append("judge_profile.model")
+        missing.append("judge_profile")
     provider = config.judge_profile.provider
     return {
         "config_valid": True,
@@ -190,7 +190,7 @@ def validate_cases(
 def create_judge(profile: JudgeProfile, env_file: Path) -> DeepEvalBaseLLM:
     """Create the explicitly selected native adapter using environment-only credentials."""
     if profile.provider is None or profile.model is None:
-        _invalid("Set judge_profile.provider and judge_profile.model before evaluation")
+        _invalid("Set provider and judge_profile (a file in envs/) in config.yaml before evaluation")
     class_name, key_name = PROVIDERS[profile.provider]
     key = os.environ.get(key_name)
     if not key:

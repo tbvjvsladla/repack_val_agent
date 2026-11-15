@@ -64,6 +64,17 @@ def frontmatter(text: str) -> dict[str, str]:
     return fields
 
 
+OPT_IN = re.compile(r"^\s+activation:\s*[\"']?opt-in[\"']?\s*$", re.M)
+
+
+def opt_in(skill_md: Path) -> bool:
+    """metadata.activation: opt-in marks a skill that ships without discovery links."""
+    text = skill_md.read_text(encoding="utf-8")
+    if not text.startswith("---\n"):
+        return False
+    return bool(OPT_IN.search(text[4:text.find("\n---", 4)]))
+
+
 def check_wiring(root: Path) -> list[str]:
     errors = []
     agents = root / "AGENTS.md"
@@ -92,6 +103,8 @@ def check_wiring(root: Path) -> list[str]:
             errors.append(f"{base}/{extra} has no canonical skill")
         for name in skills:
             link = adapter_dir / name
+            if opt_in(root / "skills" / name / "SKILL.md") and not os.path.lexists(link):
+                continue  # inactive opt-in skill; scripts/skill_activation.py lays the links
             if not link.is_symlink():
                 errors.append(f"{base}/{name} is not a symlink")
             elif os.readlink(link) != f"../../skills/{name}" or not (link / "SKILL.md").is_file():
@@ -109,9 +122,16 @@ def check_tracked_links(root: Path, skills: list[str]) -> list[str]:
     listed = subprocess.run(["git", "-C", str(root), "ls-files", "-s", "--", *ADAPTER_DIRS],
                             capture_output=True, text=True, check=True).stdout
     modes = {line.split("\t", 1)[1]: line.split()[0] for line in listed.splitlines() if "\t" in line}
-    return [f"{base}/{name} is not tracked by Git as a symlink"
-            for base in ADAPTER_DIRS for name in skills
-            if modes.get(f"{base}/{name}") != "120000"]
+    errors = []
+    for base in ADAPTER_DIRS:
+        for name in skills:
+            rel = f"{base}/{name}"
+            if opt_in(root / "skills" / name / "SKILL.md"):
+                if rel in modes:
+                    errors.append(f"{rel} belongs to an opt-in skill and must stay untracked")
+            elif modes.get(rel) != "120000":
+                errors.append(f"{rel} is not tracked by Git as a symlink")
+    return errors
 
 
 def live_files(root: Path) -> list[Path]:

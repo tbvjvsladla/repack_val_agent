@@ -57,9 +57,21 @@ repack_val_agent는 코드베이스·스킬·MCP·플러그인 등의 **개선�
 | [deepeval-pack](skills/deepeval-pack/SKILL.md) | 답변·검색 문맥·기대 답변을 평가할 때 | 설정한 Judge·메트릭에 따른 케이스별 점수·이유·오류 |
 | [skillevaluator](skills/skillevaluator/SKILL.md) | 스킬의 형식·안전·품질을 점검하거나, 스킬이 있을 때와 없을 때의 에이전트 결과를 비교할 때 | 단계(Tier)별 점수·판정·발견 사항과 실행하지 않은 범위 |
 
-`deepeval-pack`은 스킬 안의 `config.yaml`을 knob로 씁니다. `judge_profile`(provider·model·생성 설정)과 `metrics`(`{type, params}` 목록, 같은 메트릭을 다른 파라미터로 여러 번 사용 가능)를 이 파일에서 정하고, 설정은 요청마다 다시 읽습니다. 배포되는 것은 `config.example.yaml`이며 활성 `config.yaml`은 로컬에 둡니다. 계약은 [설정·입력 계약](skills/deepeval-pack/references/config.md)에 있습니다. `skillevaluator`는 [NVIDIA SkillEvaluator](https://github.com/NVIDIA/SkillEvaluator)의 스킬 정의를 출처·라이선스와 함께 들인 것이며, CLI는 따로 설치합니다.
+두 평가 도구는 **비활성 상태로 배포**합니다. 정본 폴더는 `skills/`에 있지만 하네스가 발견하는 링크와 활성 설정은 없습니다. 받은 시스템의 사용자가 쓰기로 정하면 `python3 scripts/skill_activation.py enable <skill> --apply`로 켭니다. 이 명령은 발견 링크와 `config.yaml`(없을 때만)을 만들고, 의존성·CLI 설치와 MCP 등록은 각 스킬의 안내대로 사용자가 합니다.
 
-두 평가 도구의 API 키는 프로젝트 루트 `envs/`에 둡니다. 키 이름은 [envs/.env.example](envs/.env.example)에 있고, 실제 `envs/.env`는 Git·공개본에 넣지 않습니다. `deepeval-pack`의 MCP 서버는 기동할 때 이 파일에서 선택한 provider의 키를 읽습니다. 규칙은 [하네스규칙의 권한](rules/harness.md#권한)에 있습니다.
+외부 LLM 설정은 두 스킬이 같은 방식으로 받습니다. 각 스킬의 `config.yaml`에는 `provider`와 `judge_profile` 두 knob만 있습니다. `judge_profile`은 프로젝트 루트 `envs/`의 프로필 파일(model과 생성 설정)을 가리키고, 키는 같은 폴더의 `envs/.env`에서 읽습니다. 스킬 안의 어댑터가 이 공용 프로필을 자기 런타임의 설정으로 바꿉니다(어댑터 패턴).
+
+```text
+envs/opus_profile.yaml        model: claude-opus-5-5, settings: ...
+envs/.env                     ANTHROPIC_API_KEY=...
+skills/<skill>/config.yaml    provider: anthropic
+                              judge_profile: opus_profile.yaml
+```
+
+- `deepeval-pack`은 프로필의 model과 settings를 DeepEval Judge에 그대로 넘기고, `metrics`(`{type, params}` 목록)로 평가 메트릭을 고릅니다. 계약: [설정·입력 계약](skills/deepeval-pack/references/config.md).
+- `skillevaluator`는 [NVIDIA SkillEvaluator](https://github.com/NVIDIA/SkillEvaluator)의 스킬 정의를 출처·라이선스와 함께 들인 것입니다. 어댑터가 CLI의 평가·Judge·Tier 3 에이전트 모델을 프로필의 model로 정합니다. CLI가 생성 설정(temperature 등)을 받지 않으므로 그 항목은 적용되지 않았다고 보고합니다.
+
+`envs/`의 예시만 추적합니다([.env.example](envs/.env.example), [profile.example.yaml](envs/profile.example.yaml)). 실제 키·프로필은 Git·공개본에 넣지 않습니다. 규칙은 [하네스규칙의 권한](rules/harness.md#권한)에 있습니다.
 
 예를 들어 동작 보존이 목표인 Rust 전환 과업에서는 `rust-repack`의 결과를 별도 검토에 넘길 수 있고, 검색·답변 품질 과업에서는 `deepeval-pack`을 평가 수단으로 선택할 수 있습니다. 구체적인 조합은 과업에서 정합니다. **한 도구의 완료는 그 도구가 맡은 범위의 완료**이며, 전체 개선의 완료는 메인이 합의한 기준과 실제 근거로 확인합니다.
 
@@ -133,7 +145,8 @@ repack_val_agent는 코드베이스·스킬·MCP·플러그인 등의 **개선�
 | [campaigns/](campaigns/) | 오래 걸리는 개선 과업을 항목과 단계로 나누는 규약과 틀 |
 | `scripts/check_campaign.py` | 캠페인의 틀과 인스턴스 형식을 읽기 전용으로 검사 |
 | [skills/progress-monitor](skills/progress-monitor/SKILL.md) | 캠페인의 운영 규칙과 실행기: 검증 묶음의 gate, 검사 결과의 재사용, 정체 감시, 방향 조정 |
-| `envs/` | 스킬이 쓰는 API 키(로컬 전용). [.env.example](envs/.env.example)의 키 이름만 추적 |
+| `envs/` | 스킬이 쓰는 API 키와 Judge 프로필(로컬 전용). 예시만 추적 |
+| `scripts/skill_activation.py` | 비활성으로 배포되는 opt-in 스킬의 켜기·끄기 |
 | [__llm-wiki/](__llm-wiki/) | 로컬 포인터 위키를 만들 계약·용어집 |
 | `repack_target/` | 로컬 개선 대상과 최종 산출물을 준비할 공간 |
 | [PUBLICATION.md](PUBLICATION.md) | 공개 범위와 공개본 생성 절차 |
@@ -177,15 +190,18 @@ python3 scripts/check_campaign.py
 python3 -B -m unittest discover -s skills/progress-monitor/tests
 ```
 
-DeepEval 기반 평가를 선택한다면 `deepeval-pack`의 의존성을 스킬 폴더에 설치하고 활성 설정과 키를 준비한 뒤, [로컬 설치](skills/deepeval-pack/references/installation.md)의 MCP 등록을 따릅니다. Judge provider/model은 각 작업 공간에서 정하며 스킬이 기본값을 채우지 않습니다.
+선택 평가 도구는 켠 뒤에 준비합니다. 예를 들어 `deepeval-pack`은 다음과 같습니다. MCP 등록은 [로컬 설치](skills/deepeval-pack/references/installation.md)를 따릅니다. provider와 model은 각 작업 공간에서 정하며 스킬이 기본값을 채우지 않습니다.
 
 ```bash
-(cd skills/deepeval-pack && uv sync --frozen && cp -n config.example.yaml config.yaml)
-cp -n envs/.env.example envs/.env   # 사용할 키만 채웁니다
+python3 scripts/skill_activation.py enable deepeval-pack --apply
+(cd skills/deepeval-pack && uv sync --frozen)
+cp -n envs/.env.example envs/.env                         # 사용할 키만 채웁니다
+cp -n envs/profile.example.yaml envs/opus_profile.yaml    # model·settings를 고칩니다
+# skills/deepeval-pack/config.yaml: provider, judge_profile
 skills/deepeval-pack/.venv/bin/python -B skills/deepeval-pack/scripts/run.py check
 ```
 
-스킬 평가를 선택한다면 SkillEvaluator CLI를 설치하고 [skillevaluator](skills/skillevaluator/SKILL.md)의 순서대로 키 없이 되는 Tier 1부터 실행합니다.
+`skillevaluator`는 `enable skillevaluator --apply`로 켜고, SkillEvaluator CLI를 설치한 뒤 `python3 -B skills/skillevaluator/scripts/run.py check`로 확인합니다. 실행은 `run.py exec -- <CLI 인자>`로 하며, 키 없이 되는 Tier 1부터 시작합니다.
 
 ## 문서 작성과 배포 경계
 

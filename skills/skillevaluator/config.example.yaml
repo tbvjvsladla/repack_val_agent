@@ -1,0 +1,7 @@
+# Copy to config.yaml (local, Git-ignored). Two knobs.
+# provider: anthropic | openai | deepseek   (google is not supported by the SkillEvaluator CLI)
+# judge_profile: a file name in the project's envs/ folder, e.g. opus_profile.yaml.
+#   Its model drives every LLM the CLI calls; the provider's key comes from the
+#   process environment or envs/.env. null keeps LLM stages off (keyless commands still run).
+provider: null
+judge_profile: null

@@ -1,0 +1,12 @@
+# Shared Judge profile. Copy to envs/<name>_profile.yaml (local, Git-ignored), e.g.
+# envs/opus_profile.yaml, and point a skill's config.yaml at it:
+#   provider: anthropic
+#   judge_profile: opus_profile.yaml
+# The key for the provider (e.g. ANTHROPIC_API_KEY) goes in envs/.env, never here.
+# Each skill's adapter reads this file; a skill reports any field its runtime cannot apply.
+provider: anthropic          # optional; when set it must match the skill's provider knob
+model: claude-opus-5-5       # the provider's model ID
+settings:                    # optional generation settings
+  temperature: 0.0
+  generation_kwargs:         # provider-native options, passed as written where supported
+    max_tokens: 8192

@@ -51,7 +51,11 @@ val_agent가 배포하는 것은 **아우터 하네스**다. 사람이 설계한
 
 Claude Code는 `.claude/settings.json`과 `.claude/settings.local.json`에 적힌 `bypassPermissions`·`auto` 모드를 무시한다. 이 모드는 사용자 설정(`~/.claude/settings.json`)이나 실행 플래그(`--permission-mode`)로만 켤 수 있다. 따라서 추적하는 `.claude/settings.json`에는 위 금지선의 deny/ask 규칙만 둔다. 로컬 allow 목록은 `.claude/settings.local.json`에, 자율 모드는 사용자 설정이나 실행 플래그에 둔다. Codex의 프로젝트 `.codex/config.toml`은 trusted 프로젝트에서만 적용되며, 이 저장소에서는 로컬 파일로 둔다.
 
-스킬이 쓰는 API 키는 프로젝트 루트의 `envs/`에 둔다(예: `envs/.env`). `envs/`에서는 키 이름만 적은 `envs/.env.example`만 추적하고, 실제 키 파일은 Git·공개본에 넣지 않는다. 이미 설정된 프로세스 환경변수가 파일보다 먼저다. 키 값을 문서·로그·설정·응답에 옮겨 적지 않는다. 스킬은 프로젝트 루트를 자기 설치 위치로 정해 `envs/`를 찾고, 다른 위치는 명시 인자로 받는다. 키를 새로 만들거나 바꾸는 것은 사용자가 한다.
+스킬이 외부 LLM을 부를 때 쓰는 API 키와 Judge 프로필은 프로젝트 루트의 `envs/`에 둔다. 키는 `envs/.env`에, 프로필은 `envs/<name>_profile.yaml`(model과 생성 설정, 키 없음)에 둔다. `envs/`에서는 예시(`envs/.env.example`, `envs/profile.example.yaml`)만 추적하고, 실제 키·프로필 파일은 Git·공개본에 넣지 않는다. 이미 설정된 프로세스 환경변수가 파일보다 먼저다. 키 값을 문서·로그·설정·응답에 옮겨 적지 않는다.
+
+이런 스킬은 자기 `config.yaml`에 `provider`와 `judge_profile`(envs 안의 파일 이름) 두 knob을 두고, 스킬 안의 어댑터가 공용 프로필을 자기 런타임의 설정으로 바꾼다. 런타임이 받지 못하는 프로필 항목은 적용하지 않았다고 보고하며, 조용히 버리거나 다른 값으로 대체하지 않는다. 스킬은 프로젝트 루트를 자기 설치 위치로 정해 `envs/`를 찾고, 다른 위치는 명시 인자로 받는다. 키·프로필을 새로 만들거나 바꾸는 것은 사용자가 한다.
+
+외부 서비스와 별도 의존성이 필요한 스킬은 SKILL.md frontmatter에 `metadata.activation: opt-in`을 두고 비활성 상태로 배포한다. 정본 폴더는 `skills/`에 있지만 발견 링크와 활성 config는 없다. 받은 시스템의 사용자가 `python3 scripts/skill_activation.py enable <skill> --apply`로 켜며, 이 링크는 로컬 작업물로 추적하지 않는다.
 
 로컬 훅(예: 캠페인의 종료 훅)은 하네스별 로컬 설정 파일에 둘 수 있다. 추적하는 설정에는 훅을 두지 않는다. 저장소를 받은 사람의 세션이 뜻하지 않게 막히지 않게 하기 위해서다.
 

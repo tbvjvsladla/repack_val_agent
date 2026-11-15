@@ -83,7 +83,8 @@ class PackTest(unittest.TestCase):
 
     def test_example_is_valid_without_judge(self):
         config = load_config(
-            Path(__file__).resolve().parents[1] / "config.example.yaml"
+            Path(__file__).resolve().parents[1] / "config.example.yaml",
+            Path(tempfile.mkdtemp()),
         )
         status = engine.validate_config(config)
         self.assertFalse(status["judge_configured"])  # noqa: PT009

@@ -64,7 +64,7 @@ def main() -> int:
     try:
         result: dict[str, Any] = {
             "status": "ok",
-            **validate_config(load_config(args.config)),
+            **validate_config(load_config(args.config, args.env_file.resolve().parent)),
         }
     except Exception as error:  # noqa: BLE001 - CLI shares MCP's sanitized error contract.
         result = _failure(error)

@@ -1,13 +1,10 @@
-# Copy to config.yaml; edit with an agent in a later session.
-judge_profile:
-  provider: null # anthropic | openai | google (alias: gemini) | deepseek
-  model: null
-  settings: {}
-  # settings:
-  #   temperature: <number supported by your model>
-  #   generation_kwargs: {<provider-native generation option>: <value>}
-  #   cost_per_input_token: <optional SDK metadata for unlisted models>
-  #   cost_per_output_token: <optional SDK metadata for unlisted models>
+# Copy to config.yaml (local, Git-ignored). Two Judge knobs and the metric list.
+# provider: anthropic | openai | google (alias: gemini) | deepseek
+# judge_profile: a file name in the project's envs/ folder, e.g. opus_profile.yaml
+#   (model and generation settings; see envs/profile.example.yaml). The API key for
+#   the provider comes from the process environment or envs/.env.
+provider: null
+judge_profile: null
 metrics:
   - type: ContextualRecallMetric
     params:
@@ -17,4 +14,3 @@ metrics:
     params:
       threshold: 0.5
       include_reason: true
-
