@@ -35,6 +35,7 @@ TOP_FILES = {
     "campaigns/README.md", "campaigns/_template/campaign.json", ".claude/settings.json",
     "__llm-wiki/.gitignore", "__llm-wiki/contract.json", "__llm-wiki/glossary.json",
     "envs/.env.example", "envs/profile.example.yaml", "scripts/skill_activation.py",
+    "repack_target/README.md",
 }
 PRIVATE_PARTS = {
     ".git", "__pycache__", "node_modules", ".cache", ".pytest_cache",

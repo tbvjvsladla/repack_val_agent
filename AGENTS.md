@@ -14,4 +14,4 @@
 
 Target Project를 개선하는 과업은 [campaigns/README.md](campaigns/README.md)의 규약대로 항목과 단계로 나눠 수행한다. 캠페인을 수행할 때는 `skills/progress-monitor/SKILL.md`를 읽고 따른다.
 
-루트 `seed/`, `temp/`, `tests/`와 생성된 과업 문서·캠페인 인스턴스와 `campaigns/ACTIVE`·위키 카드·index·log·receipt·캐시·우로보로스 실행 데이터, 하네스별 로컬 설정은 로컬 작업물이다. `skills/`, `rules/`, 진입 파일, 하네스 어댑터 링크, 역할별 `docs/*/doc_gen_guide.md`, `campaigns/README.md`와 `campaigns/_template/`, 위키 `contract.json`·`glossary.json`·`.gitignore`는 Git 추적 대상이다. 실제 문서 작성·입고·같은 과업의 재개 의무는 유지한다.
+루트 `seed/`, `temp/`, `tests/`와 생성된 과업 문서·캠페인 인스턴스와 `campaigns/ACTIVE`·위키 카드·index·log·receipt·캐시·우로보로스 실행 데이터, 하네스별 로컬 설정, `repack_target/`의 README 외 대상 콘텐츠·개선 결과는 로컬 작업물이다. `skills/`, `rules/`, 진입 파일, 하네스 어댑터 링크, 역할별 `docs/*/doc_gen_guide.md`, `campaigns/README.md`와 `campaigns/_template/`, `repack_target/README.md`, 위키 `contract.json`·`glossary.json`·`.gitignore`는 Git 추적 대상이다. 실제 문서 작성·입고·같은 과업의 재개 의무는 유지한다.

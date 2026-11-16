@@ -37,6 +37,10 @@
 /.agents/skills/skillevaluator
 /.claude/skills/skillevaluator
 
+# Improvement targets and their results stay local; only the folder guide is tracked.
+/repack_target/*
+!/repack_target/README.md
+
 # Credentials and local overrides at any depth.
 .env
 .env.*

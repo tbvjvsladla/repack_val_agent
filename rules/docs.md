@@ -91,4 +91,4 @@ node skills/wiki-desk/src/cli.ts check
 
 헌장·설치 스킬과 내부 회귀 테스트, 역할별 `docs/*/doc_gen_guide.md`, `campaigns/README.md`와 `campaigns/_template/`, 위키 `contract.json`·`glossary.json`·`.gitignore`는 추적한다. 실제 과업 문서와 캠페인 인스턴스·`campaigns/ACTIVE`, 위키 카드·index·log·receipt·archive·캐시, 공개본 생성 manifest(`PUBLIC_EXPORT.json`)는 로컬 생성물로 제외한다. 원문 없이 해당 문서의 위키 카드만 배포하지 않는다.
 
-루트 `/seed/`, `/temp/`, `/tests/`와 우로보로스 실행 데이터도 제외한다. 루트 `/tests/` 제외를 설치 스킬 내부 회귀 테스트에 적용하지 않는다. 추적 해제는 로컬 파일 보존을 확인한 뒤 해당 경로에만 `git rm --cached`로 적용한다.
+루트 `/seed/`, `/temp/`, `/tests/`와 우로보로스 실행 데이터도 제외한다. `repack_target/`은 `README.md`만 추적하고 개선 대상 콘텐츠와 결과는 모든 깊이에서 제외한다. 루트 `/tests/` 제외를 설치 스킬 내부 회귀 테스트에 적용하지 않는다. 추적 해제는 로컬 파일 보존을 확인한 뒤 해당 경로에만 `git rm --cached`로 적용한다.

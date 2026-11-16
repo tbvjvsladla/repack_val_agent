@@ -13,7 +13,8 @@
 | opt-in 스킬(deepeval-pack, skillevaluator)의 발견 링크 | 공개본에 넣지 않음. 비활성 상태로 배포하고 받은 쪽에서 `scripts/skill_activation.py`로 켬 |
 | 위키 카드·index·log·receipt·archive·캐시 | 로컬 보존, Git 추적·공개본 제외 |
 | PUBLIC_EXPORT.json | 공개 후보마다 새로 생성, 원본 Git 추적 제외 |
-| 실제 외부 프로젝트 소스, seed, temp, 루트 tests | 제외 |
+| repack_target/README.md | 개선 대상 폴더의 사용 지침만 공개 |
+| repack_target의 대상 원본·작업본·개선 결과, 실제 외부 프로젝트 소스, seed, temp, 루트 tests | 제외 |
 | 개인 Codex 설정, 하네스별 로컬 설정과 로컬 훅, 실제 worker config, 인증·비밀값 | 제외. 워커 설정과 훅 설치는 예시만 제공 |
 | 원시 stdout/stderr, 모델 응답·실행 상태, 캐시·Ouroboros 데이터 | 제외 |
 | `scripts/skill_activation.py` | 공개. opt-in 스킬의 켜기·끄기 |
