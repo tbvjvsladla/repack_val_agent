@@ -6,7 +6,9 @@ campaign instances are not.
 
 Canonical rules and skills live at harness-neutral paths (rules/, skills/).
 Per-harness skill discovery adapters (.agents/skills/<n>, .claude/skills/<n>)
-are directory symlinks and are recreated as symlinks in the output.
+are directory symlinks and are recreated as symlinks in the output for the base
+skills. Optional skills (listed in skill-activation.yaml) ship off, without links;
+the local knob skill-activation.local.yaml is never exported.
 """
 from __future__ import annotations
 
@@ -35,14 +37,14 @@ TOP_FILES = {
     "campaigns/README.md", "campaigns/_template/campaign.json", ".claude/settings.json",
     "__llm-wiki/.gitignore", "__llm-wiki/contract.json", "__llm-wiki/glossary.json",
     "envs/.env.example", "envs/profile.example.yaml", "scripts/skill_activation.py",
-    "repack_target/README.md",
+    "scripts/test_skill_activation.py", "skill-activation.yaml", "repack_target/README.md",
 }
 PRIVATE_PARTS = {
     ".git", "__pycache__", "node_modules", ".cache", ".pytest_cache",
     ".venv", "target", ".ouroboros",
 }
 PRIVATE_NAMES = (
-    ".env", ".env.*", "*.local.json", "*.local.toml", "auth.json",
+    ".env", ".env.*", "*.local.json", "*.local.toml", "*.local.yaml", "*.local.yml", "auth.json",
     "credentials.json", "*.pem", "*.key", "id_rsa*", "id_ed25519*",
     "*.pyc", "*.pyo", ".DS_Store",
 )
@@ -115,20 +117,33 @@ def source_files() -> dict[str, bytes]:
     return sources
 
 
-OPT_IN = re.compile(r"^\s+activation:\s*[\"']?opt-in[\"']?\s*$", re.M)
+KNOB_ENTRY = re.compile(r"^  ([a-z0-9][a-z0-9-]*):\s*(\S*)")
 
 
-def opt_in(skill: str) -> bool:
-    """Opt-in skills ship inactive: no discovery links in the export."""
-    text = (ROOT / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
-    return text.startswith("---\n") and bool(OPT_IN.search(text[4:text.find("\n---", 4)]))
+def optional_skills() -> set[str]:
+    """Skills listed in skill-activation.yaml ship off: the export has no discovery links for them."""
+    names, inside = set(), False
+    for line in (ROOT / "skill-activation.yaml").read_text(encoding="utf-8").splitlines():
+        if line.startswith("skills:"):
+            inside = True
+        elif line and not line.startswith((" ", "#")):
+            inside = False
+        elif inside and (match := KNOB_ENTRY.match(line)):
+            names.add(match.group(1))
+            if match.group(2).split("#")[0] not in ("off", "false"):
+                raise ValueError(f"skill-activation.yaml must ship every optional skill off: {match.group(1)}")
+    unknown = names - SKILLS
+    if unknown:
+        raise ValueError(f"skill-activation.yaml lists unknown skills: {sorted(unknown)}")
+    return names
 
 
 def adapter_links() -> dict[str, str]:
-    """Return every always-on skill's discovery adapter as {path: target}; opt-in skills get none."""
+    """Return every base skill's discovery adapter as {path: target}; optional skills get none."""
     links = {}
+    optional = optional_skills()
     for base in ADAPTER_DIRS:
-        for skill in sorted(s for s in SKILLS if not opt_in(s)):
+        for skill in sorted(s for s in SKILLS if s not in optional):
             rel = f"{base}/{skill}"
             path = ROOT / rel
             expected = f"../../skills/{skill}"

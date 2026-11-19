@@ -53,8 +53,12 @@ RESERVED_EVENTS = {
     "campaign-open", "phase-start", "phase-retry", "phase-close", "check", "gate", "final",
     "gate-reopen", "cell-add", "cell-cancel", "regroup", "cell-reopen", "cell-stop", "cell-resume",
     "cell-close", "review", "hitl", "hitl-answer", "invalidate", "explore-open", "hang",
-    "monitor-release", "brief",
+    "monitor-release", "brief", "campaign-close",
 }
+# Skill activation: the repository's activation script and shared knob, when both exist.
+ACTIVATION_ENV = "PM_SKILL_ACTIVATION"
+ACTIVATION_SCRIPT = Path("scripts") / "skill_activation.py"
+ACTIVATION_KNOB = "skill-activation.yaml"
 GROUP_CANCELLED, GROUP_STOPPED, GROUP_WAITING = "취소", "멈춤", "기다림"
 GROUP_PASSED, GROUP_FAILED, GROUP_ACTIVE = "통과", "실패", "진행"
 
@@ -655,7 +659,64 @@ def running_elsewhere(gate: dict) -> bool:
         and alive(gate.get("pid"))
 
 
-# --- commands: open, phases -----------------------------------------------------
+# --- skill activation -------------------------------------------------------------
+
+def activation_script(camp: Campaign) -> Path | None:
+    """The activation script for this campaigns folder, or None when the repository has no knob."""
+    root = camp.base.parent
+    override = os.environ.get(ACTIVATION_ENV)
+    script = Path(override) if override else root / ACTIVATION_SCRIPT
+    return script if script.is_file() and (root / ACTIVATION_KNOB).is_file() else None
+
+
+def activation(camp: Campaign, script: Path, *args: str) -> tuple[int, dict]:
+    proc = subprocess.run([sys.executable, "-B", str(script), "--root", str(camp.base.parent),
+                           "--campaigns", str(camp.base), *args], capture_output=True, text=True, timeout=300)
+    try:
+        out = json.loads(proc.stdout)
+    except ValueError:
+        out = {"ok": False, "error": (proc.stderr or proc.stdout)[-2000:]}
+    return proc.returncode, out if isinstance(out, dict) else {"ok": False, "error": str(out)}
+
+
+def activation_refusal(code: int, out: dict, step: str) -> Exception:
+    if code == 1:
+        detail = {k: v for k, v in out.items() if k not in ("ok", "refused")}
+        return Refused(f"skill-activation-{out.get('refused') or 'failed'}", step=step, **detail)
+    return Usage(f"skill activation ({step}): {out.get('error') or out}")
+
+
+def select_skills(camp: Campaign, script: Path, choice: str | None) -> tuple[dict, dict]:
+    """Ask for the selection (hitl) or turn the chosen optional skills on for this campaign."""
+    if choice is None:
+        code, out = activation(camp, script, "candidates")
+        if code:
+            raise activation_refusal(code, out, "candidates")
+        candidates = out.get("candidates") or []
+        blocking = [name for name in out.get("open_records") or [] if name != camp.dir.name]
+        if blocking:
+            raise Refused("skill-activation-another-campaign-open", campaign=blocking[0],
+                          hint=f"close it first: python3 scripts/skill_activation.py campaign-close {blocking[0]}")
+        listed = ", ".join(f"{c['skill']} ({'on' if c['on'] else 'off'})" for c in candidates)
+        question = (f"Which optional skills should this campaign turn on? Candidates: {listed}. "
+                    f"Answer by running {camp.pm} open --skills <a,b> or --skills none.")
+        ident = camp.open_hitl("skill-selection", question)
+        raise Refused("selection-required", hitl=ident, candidates=candidates,
+                      next=f"{camp.pm} open --skills <a,b|none>")
+    pending = [h for h in camp.hitls() if h.get("kind") == "skill-selection" and h["answer"] is None]
+    hitl = pending[-1]["id"] if pending else None
+    code, out = activation(camp, script, "campaign-open", camp.dir.name, "--skills", choice,
+                           *(("--hitl", hitl) if hitl else ()))
+    if code:
+        raise activation_refusal(code, out, "campaign-open")
+    if hitl:
+        # The agent relays the person's answer; the ref says where it came in.
+        camp.emit("hitl-answer", id=hitl, ref=f"{camp.pm} open --skills {choice}", allow=False)
+    record = out.get("record") or {}
+    return {k: record.get(k, []) for k in ("requested", "enabled", "pre_existing")}, out.get("mcp_register") or {}
+
+
+# --- commands: open, close, phases -----------------------------------------------
 
 def cmd_open(camp: Campaign, args) -> dict:
     with camp.lock():
@@ -672,22 +733,73 @@ def cmd_open(camp: Campaign, args) -> dict:
             for name in group["checks"]:
                 if name not in ids:
                     raise Usage(f"group {group['group']!r} names unknown check {name!r}")
-        briefing = {"on_phase": True, "every_hours": None, **(camp.decl.get("briefing") or {})}
-        source = "default"
-        if args.briefing_on_phase is not None:
-            briefing["on_phase"] = args.briefing_on_phase == "true"
-            source = "user"
-        if args.briefing_every_hours is not None:
-            briefing["every_hours"] = args.briefing_every_hours if args.briefing_every_hours > 0 else None
-            source = "user"
-        camp.decl["briefing"] = briefing
-        camp.save_decl()
-        for folder in ("gates", "receipts", "logs"):
-            (camp.dir / folder).mkdir(exist_ok=True)
-        camp.save_monitor(camp.monitor())
-        camp.emit("campaign-open", cells=[{"cell": c["cell"], "group": c["group"]} for c in camp.cells()],
-                  groups=groups, briefing=briefing, briefing_source=source)
-        return {"ok": True, "campaign": camp.decl.get("id"), "briefing": briefing, "briefing_source": source}
+        script = activation_script(camp)
+        if script is None and args.skills is not None:
+            raise Usage(f"--skills needs {ACTIVATION_SCRIPT} and {ACTIVATION_KNOB} in the repository")
+        if script is None:
+            return finish_open(camp, args, groups, None, {})
+        record = camp.dir / "activation.json"
+        had_record = record.exists()
+        try:
+            skills, mcp_register = select_skills(camp, script, args.skills)
+            return finish_open(camp, args, groups, skills, mcp_register)
+        except BaseException as exc:
+            # Undo a campaign-open that went through when a later step failed (not a refusal before it).
+            if not had_record and record.exists() and not isinstance(exc, Refused):
+                code, out = activation(camp, script, "campaign-abort", camp.dir.name)
+                if code:
+                    raise Usage(f"open failed ({exc}) and undoing the skill activation also failed: "
+                                f"{out.get('error') or out.get('refused')}; run python3 scripts/skill_activation.py "
+                                f"campaign-abort {camp.dir.name}") from exc
+            raise
+
+
+def finish_open(camp: Campaign, args, groups: list[str], skills: dict | None, mcp_register: dict) -> dict:
+    briefing = {"on_phase": True, "every_hours": None, **(camp.decl.get("briefing") or {})}
+    source = "default"
+    if args.briefing_on_phase is not None:
+        briefing["on_phase"] = args.briefing_on_phase == "true"
+        source = "user"
+    if args.briefing_every_hours is not None:
+        briefing["every_hours"] = args.briefing_every_hours if args.briefing_every_hours > 0 else None
+        source = "user"
+    camp.decl["briefing"] = briefing
+    camp.save_decl()
+    for folder in ("gates", "receipts", "logs"):
+        (camp.dir / folder).mkdir(exist_ok=True)
+    camp.save_monitor(camp.monitor())
+    extra = {"skills": skills} if skills is not None else {}
+    camp.emit("campaign-open", cells=[{"cell": c["cell"], "group": c["group"]} for c in camp.cells()],
+              groups=groups, briefing=briefing, briefing_source=source, **extra)
+    return {"ok": True, "campaign": camp.decl.get("id"), "briefing": briefing, "briefing_source": source,
+            "skills": skills, "mcp_register": mcp_register or None}
+
+
+def cmd_close(camp: Campaign, args) -> dict:
+    """Turn off the optional skills this campaign turned on, then clear ACTIVE."""
+    with camp.lock():
+        if not any(e.get("event") == "campaign-open" for e in camp.events()):
+            raise Refused("not-open")
+        final = camp.gate(FINAL)
+        if final.get("state") != "passed" and not (args.reason and args.reason.strip()):
+            raise Refused("final-not-passed", state=final.get("state"),
+                          hint="run final run first, or close anyway with --reason <why>")
+        script = activation_script(camp)
+        skills, note = None, None
+        record = read_json(camp.dir / "activation.json", {})
+        if isinstance(record, dict) and record.get("state") == "closed":
+            note = "the activation record was already closed; nothing to turn off"
+        elif script is not None and (camp.dir / "activation.json").is_file():
+            code, out = activation(camp, script, "campaign-close", camp.dir.name)
+            if code:
+                raise activation_refusal(code, out, "campaign-close")
+            record = out.get("record") or {}
+            skills = {"turned_off": record.get("turned_off", []), "left_as_changed": record.get("left_as_changed", [])}
+        else:
+            note = "no activation record; no optional skill was turned off"
+        camp.emit("campaign-close", reason=args.reason, final=final.get("state"), **({"skills": skills} if skills else {}))
+        (camp.base / "ACTIVE").unlink(missing_ok=True)
+        return {"ok": True, "closed": camp.dir.name, "skills": skills, "note": note, "active": None}
 
 
 def start_problems(camp: Campaign, cell: dict, phase: str) -> list[str]:
@@ -1643,7 +1755,8 @@ def build_parser() -> argparse.ArgumentParser:
         return flags, options
 
     leaf(top, "open", cmd_open, arg("--briefing-on-phase", choices=("true", "false"), default=None),
-         arg("--briefing-every-hours", type=float, default=None))
+         arg("--briefing-every-hours", type=float, default=None), arg("--skills", default=None))
+    leaf(top, "close", cmd_close, arg("--reason", default=None))
     leaf(top, "status", cmd_status)
     leaf(top, "metrics", cmd_metrics)
     leaf(top, "brief", cmd_brief, arg("--done", default=None))

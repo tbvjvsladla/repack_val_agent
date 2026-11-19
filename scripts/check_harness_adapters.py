@@ -64,15 +64,27 @@ def frontmatter(text: str) -> dict[str, str]:
     return fields
 
 
-OPT_IN = re.compile(r"^\s+activation:\s*[\"']?opt-in[\"']?\s*$", re.M)
+KNOB = "skill-activation.yaml"
+KNOB_ENTRY = re.compile(r"^  ([a-z0-9][a-z0-9-]*):")
 
 
-def opt_in(skill_md: Path) -> bool:
-    """metadata.activation: opt-in marks a skill that ships without discovery links."""
-    text = skill_md.read_text(encoding="utf-8")
-    if not text.startswith("---\n"):
-        return False
-    return bool(OPT_IN.search(text[4:text.find("\n---", 4)]))
+def optional_skills(root: Path) -> set[str]:
+    """Skills listed under `skills:` in the shared activation knob; their links follow the knob, not Git.
+
+    Only the names are read here; scripts/skill_activation.py validates the whole file.
+    """
+    path = root / KNOB
+    if not path.is_file():
+        return set()
+    names, inside = set(), False
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("skills:"):
+            inside = True
+        elif line and not line.startswith((" ", "#")):
+            inside = False
+        elif inside and (match := KNOB_ENTRY.match(line)):
+            names.add(match.group(1))
+    return names
 
 
 def check_wiring(root: Path) -> list[str]:
@@ -96,6 +108,9 @@ def check_wiring(root: Path) -> list[str]:
         fm = frontmatter((root / "skills" / name / "SKILL.md").read_text(encoding="utf-8"))
         if fm.get("name") != name or not fm.get("description"):
             errors.append(f"skills/{name}/SKILL.md frontmatter needs name={name} and description")
+    optional = optional_skills(root)
+    for name in sorted(optional - set(skills)):
+        errors.append(f"{KNOB} lists {name}, which has no canonical skill")
     for base in ADAPTER_DIRS:
         adapter_dir = root / base
         present = sorted(p.name for p in adapter_dir.iterdir()) if adapter_dir.is_dir() else []
@@ -103,17 +118,17 @@ def check_wiring(root: Path) -> list[str]:
             errors.append(f"{base}/{extra} has no canonical skill")
         for name in skills:
             link = adapter_dir / name
-            if opt_in(root / "skills" / name / "SKILL.md") and not os.path.lexists(link):
-                continue  # inactive opt-in skill; scripts/skill_activation.py lays the links
+            if name in optional and not os.path.lexists(link):
+                continue  # optional skill that is off; scripts/skill_activation.py lays the links
             if not link.is_symlink():
                 errors.append(f"{base}/{name} is not a symlink")
             elif os.readlink(link) != f"../../skills/{name}" or not (link / "SKILL.md").is_file():
                 errors.append(f"{base}/{name} must be the relative symlink ../../skills/{name}")
-    errors += check_tracked_links(root, skills)
+    errors += check_tracked_links(root, skills, optional)
     return errors
 
 
-def check_tracked_links(root: Path, skills: list[str]) -> list[str]:
+def check_tracked_links(root: Path, skills: list[str], optional: set[str]) -> list[str]:
     """In a Git work tree every adapter must be committed as a symlink (mode 120000)."""
     probe = subprocess.run(["git", "-C", str(root), "rev-parse", "--show-toplevel"],
                            capture_output=True, text=True)
@@ -126,9 +141,9 @@ def check_tracked_links(root: Path, skills: list[str]) -> list[str]:
     for base in ADAPTER_DIRS:
         for name in skills:
             rel = f"{base}/{name}"
-            if opt_in(root / "skills" / name / "SKILL.md"):
+            if name in optional:
                 if rel in modes:
-                    errors.append(f"{rel} belongs to an opt-in skill and must stay untracked")
+                    errors.append(f"{rel} belongs to an optional skill ({KNOB}) and must stay untracked")
             elif modes.get(rel) != "120000":
                 errors.append(f"{rel} is not tracked by Git as a symlink")
     return errors
@@ -215,7 +230,21 @@ def negative_control() -> list[str]:
             "old-path-code": lambda r: (r / "skills/demo-skill/cli.ts").write_text(
                 "// usage: node .agents/skills/demo-skill/cli.ts\n", encoding="utf-8"),
         }
-        target = {"absolute-link": "wiring", "old-path-bare": "old-path", "old-path-code": "old-path"}
+        optional_case = Path(tmp) / "optional-off"
+        shutil.copytree(clean, optional_case, symlinks=True)
+        (optional_case / KNOB).write_text("schema_version: 1\nskills:\n  demo-skill: off\n", encoding="utf-8")
+        for base in ADAPTER_DIRS:
+            (optional_case / base / "demo-skill").unlink()
+        if run(optional_case)["wiring"]:
+            problems.append(f"an off optional skill without links did not pass: {run(optional_case)['wiring']}")
+        seeds["optional-bad-link"] = lambda r: ((r / KNOB).write_text(
+            "schema_version: 1\nskills:\n  demo-skill: on\n", encoding="utf-8"),
+            (r / ".agents/skills/demo-skill").unlink(),
+            (r / ".agents/skills/demo-skill").symlink_to("../../skills/missing"))
+        seeds["knob-unknown-skill"] = lambda r: (r / KNOB).write_text(
+            "schema_version: 1\nskills:\n  ghost: off\n", encoding="utf-8")
+        target = {"absolute-link": "wiring", "old-path-bare": "old-path", "old-path-code": "old-path",
+                  "optional-bad-link": "wiring", "knob-unknown-skill": "wiring"}
         for check, seed in seeds.items():
             case = Path(tmp) / check
             shutil.copytree(clean, case, symlinks=True)

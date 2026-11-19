@@ -10,6 +10,8 @@ Source directory: `skills/skillevaluator/` (skill version 1.0.0)
 
 - `SKILL.md`: added the section "이 저장소에서의 사용" (role as an optional means, target paths, key location in `envs/.env`, report location under `temp/`, cost boundary). The metadata author line names the maintainers instead of a personal address. The rest of the procedure is unchanged.
 - `SKILL.md` metadata gains `activation: opt-in`: the skill ships without discovery links and is enabled by the user (`scripts/skill_activation.py`).
+  Later replaced: the marker was removed, and the project's activation knob (`skill-activation.yaml`) now lists the skill as optional and off.
+- `scripts/run.py` looks for the CLI in this skill's `.venv` before PATH, and for DeepSeek pins Tier 3 to `--agents opencode --agent-model opencode=openai/<model>`.
 - Added `config.example.yaml` (two knobs: `provider`, `judge_profile`) and `scripts/run.py`, an adapter that reads the shared envs/ profile and key, clears other provider variables, sets `SKILL_EVAL_LLM_PROVIDER`, the provider key, `SKILL_EVAL_LLM_MODEL`, `LLM_JUDGE_MODEL` (and the DeepSeek base URL through `openai-compatible`), adds `--agent-model` for Tier 3 when no agent is chosen, then runs the CLI. Profile generation settings are reported as not applied because the CLI has no input for them. Tests in `tests/` use a stand-in CLI.
 - `references/`, `evals/`: unchanged.
 - `references/NOTICE.md`: upstream `NOTICE`, renamed so the public export keeps it.

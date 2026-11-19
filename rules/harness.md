@@ -55,7 +55,7 @@ Claude Code는 `.claude/settings.json`과 `.claude/settings.local.json`에 적�
 
 이런 스킬은 자기 `config.yaml`에 `provider`와 `judge_profile`(envs 안의 파일 이름) 두 knob을 두고, 스킬 안의 어댑터가 공용 프로필을 자기 런타임의 설정으로 바꾼다. 런타임이 받지 못하는 프로필 항목은 적용하지 않았다고 보고하며, 조용히 버리거나 다른 값으로 대체하지 않는다. 스킬은 프로젝트 루트를 자기 설치 위치로 정해 `envs/`를 찾고, 다른 위치는 명시 인자로 받는다. 키·프로필을 새로 만들거나 바꾸는 것은 사용자가 한다.
 
-외부 서비스와 별도 의존성이 필요한 스킬은 SKILL.md frontmatter에 `metadata.activation: opt-in`을 두고 비활성 상태로 배포한다. 정본 폴더는 `skills/`에 있지만 발견 링크와 활성 config는 없다. 받은 시스템의 사용자가 `python3 scripts/skill_activation.py enable <skill> --apply`로 켜며, 이 링크는 로컬 작업물로 추적하지 않는다.
+선택 가능한 수단 스킬은 프로젝트 루트의 활성화 knob이 켜고 끈다. 공유 knob `skill-activation.yaml`(추적·공개)에 오른 스킬이 선택 수단이며 기본값은 모두 off다. 작업 공간의 값은 Git이 무시하는 `skill-activation.local.yaml`에 두고, 로컬 값이 공유 값을 덮는다. 선택 수단의 정본 폴더는 `skills/`에 있지만 발견 링크는 로컬 작업물로 추적하지 않으며, `python3 scripts/skill_activation.py sync --apply`가 병합한 값에 맞춘다. 사람은 `enable`·`disable <skill> --apply`로, 캠페인은 progress-monitor의 `open --skills`·`close`로 로컬 knob을 고친다. 캠페인은 자기가 켠 스킬만 기록하고 닫을 때 그것만 끈다. 기반 도구와 개선 방향 도구는 knob에 오르지 않고 링크를 추적한다. MCP 등록은 사용자 설정이므로 스크립트가 쓰지 않고 명령만 출력하며, 꺼진 스킬의 등록이 남아 있으면 `check`가 실패한다.
 
 로컬 훅(예: 캠페인의 종료 훅)은 하네스별 로컬 설정 파일에 둘 수 있다. 추적하는 설정에는 훅을 두지 않는다. 저장소를 받은 사람의 세션이 뜻하지 않게 막히지 않게 하기 위해서다.
 

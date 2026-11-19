@@ -2,7 +2,6 @@
 name: deepeval-pack
 description: "DeepEval의 LLM-as-a-Judge 메트릭으로 제공된 답변·검색 문맥·기대 답변을 평가한다. 스킬 config.yaml의 provider·judge_profile(envs/의 프로필 파일)과 복수 메트릭 설정을 검증하고 MCP로 케이스별 결과를 반환할 때 사용한다."
 metadata:
-  activation: opt-in
   version: "0.2.0"
 ---
 
@@ -25,5 +24,5 @@ MCP 연결이 없으면 프로젝트 루트에서 로컬 검증을 실행한다.
 
 키 파일은 프로젝트 루트의 `envs/.env`다. 프로젝트 루트는 스킬 폴더 위치로 정한다(`<root>/skills/<name>`, `<root>/.agents/skills/<name>`, `<root>/.claude/skills/<name>`). 다른 위치에 설치했으면 `DEEPEVAL_PACK_PROJECT_ROOT` 또는 `--env-file`로 지정한다.
 
-이 스킬은 비활성 상태로 배포된다(`metadata.activation: opt-in`). 활성화·의존성 설치·MCP 등록(Codex, Claude Code)은 [로컬 설치](references/installation.md)를 참고한다. 프로필 파일은 사용자가 만들며 이 팩은 프로필 생성기를 두지 않는다.
+이 스킬은 꺼진 상태로 배포된다. 켜고 끄는 것은 프로젝트 루트의 활성화 knob(`skill-activation.yaml`, 로컬 `skill-activation.local.yaml`)이 정한다. 켜기·의존성 설치·MCP 등록(Codex, Claude Code)은 [로컬 설치](references/installation.md)를 참고한다. 프로필 파일은 사용자가 만들며 이 팩은 프로필 생성기를 두지 않는다.
 

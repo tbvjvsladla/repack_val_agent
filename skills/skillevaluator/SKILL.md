@@ -4,7 +4,6 @@ description: Run and interpret SkillEvaluator for agent skills. Use for any skil
 license: Apache-2.0
 compatibility: Requires Python 3.12-3.14 and the skillevaluator CLI; live evaluation also needs Docker (or another backend) and an LLM provider key.
 metadata:
-  activation: opt-in
   author: NVIDIA SkillEvaluator maintainers (see references/adaptation.md)
   version: "1.0.0"
   domain: [evaluation, ai-ml]
@@ -23,9 +22,9 @@ live agent evaluation that compares runs with and without the skill.
 
 - 대상: 이 저장소의 정본 스킬 폴더 `skills/<name>` 또는 사용자가 지정한 경로. 어댑터 링크(`.agents/skills`, `.claude/skills`)를 대상으로 따로 세지 않는다.
 - CLI와 의존성은 번들하지 않는다. 설치되어 있지 않으면 설치 방법을 보고하고, 설치·키 추가는 사용자가 정한다.
-- **비활성 배포:** `metadata.activation: opt-in`. 쓰기로 정하면 프로젝트 루트에서 `python3 scripts/skill_activation.py enable skillevaluator --apply`로 켠다(발견 링크 2개와 `config.yaml`, 기존 파일은 덮지 않음).
+- **꺼진 채 배포:** 켜고 끄는 것은 프로젝트 루트의 활성화 knob(`skill-activation.yaml`, 로컬 `skill-activation.local.yaml`)이 정한다. 쓰기로 정하면 프로젝트 루트에서 `python3 scripts/skill_activation.py enable skillevaluator --apply`로 켠다(로컬 knob을 고치고 발견 링크 2개를 맞춘다). CLI는 `uv venv --python 3.13 <skill-dir>/.venv && uv pip install --python <skill-dir>/.venv/bin/python "skillevaluator[all]"`로 이 폴더의 `.venv`에 설치하며, 어댑터가 PATH보다 먼저 이 CLI를 찾는다. `config.yaml`은 `config.example.yaml`을 복사해 만든다.
 - **LLM 설정은 두 knob뿐이다.** 이 폴더의 `config.yaml`에 `provider`(anthropic / openai / deepseek)와 `judge_profile`(프로젝트 `envs/`의 프로필 파일 이름, 예: `opus_profile.yaml`)을 적는다. 키는 그 provider의 키(예: `ANTHROPIC_API_KEY`)를 프로세스 환경 또는 `envs/.env`에서 읽는다.
-- **CLI는 항상 어댑터로 실행한다.** 아래 본문의 `skillevaluator <args>`는 이 저장소에서 `python3 -B <skill-dir>/scripts/run.py exec -- <args>`로 읽는다. 본문의 `export SKILL_EVAL_LLM_PROVIDER=...`나 `NVIDIA_API_KEY` 같은 환경변수를 직접 설정하지 않는다. 어댑터가 실행 전에 그런 변수를 지우고, 설정한 provider·키와 프로필의 model로 평가 모델(`SKILL_EVAL_LLM_MODEL`)과 Judge 모델(`LLM_JUDGE_MODEL`)을 채운다. Tier 3에서 에이전트를 따로 고르지 않으면 provider의 기본 에이전트(claude-code / codex / opencode)에 같은 model을 지정한다. deepseek는 CLI의 OpenAI 호환 provider로 연결한다. google은 CLI가 지원하지 않아 거부한다.
+- **CLI는 항상 어댑터로 실행한다.** 아래 본문의 `skillevaluator <args>`는 이 저장소에서 `python3 -B <skill-dir>/scripts/run.py exec -- <args>`로 읽는다. 본문의 `export SKILL_EVAL_LLM_PROVIDER=...`나 `NVIDIA_API_KEY` 같은 환경변수를 직접 설정하지 않는다. 어댑터가 실행 전에 그런 변수를 지우고, 설정한 provider·키와 프로필의 model로 평가 모델(`SKILL_EVAL_LLM_MODEL`)과 Judge 모델(`LLM_JUDGE_MODEL`)을 채운다. Tier 3(`tier3`, `validate`의 Tier 3, `doctor`의 Tier 3 점검)에서 에이전트를 따로 고르지 않으면 provider의 기본 에이전트(claude-code / codex / opencode)에 같은 model을 지정한다. deepseek는 CLI의 OpenAI 호환 provider로 연결하고, 그 경로의 opencode는 `openai/<model>`을 받으므로 `--agents opencode --agent-model opencode=openai/<model>`을 붙인다. google은 CLI가 지원하지 않아 거부한다.
 - **적용되지 않는 프로필 항목:** CLI는 호출별 생성 옵션을 외부에서 받지 않는다. 프로필의 `settings`(temperature, generation_kwargs)는 적용되지 않으며, 어댑터가 `check`의 `not_applied`와 실행 시 stderr로 알린다. 적용됐다고 보고하지 않는다. Tier 2의 임베딩 provider도 프로필로 정하지 않는다(anthropic은 임베딩이 없다).
 - 먼저 `python3 -B <skill-dir>/scripts/run.py check`로 provider·프로필·model·키 존재(값은 출력하지 않음)·CLI 위치를 확인한다. `provider`와 `judge_profile`이 null이면 provider 변수를 모두 지운 채 실행하므로 키가 필요 없는 명령만 동작한다.
 - 보고서는 `--output`으로 `temp/` 아래 새 폴더에 쓴다. Tier 3가 대상 스킬 안에 만드는 `evals/results/`는 로컬 결과물이며 커밋하지 않는다.

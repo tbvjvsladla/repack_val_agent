@@ -2,14 +2,14 @@
 
 ## 활성화
 
-이 스킬은 비활성 상태로 배포된다. 스킬 발견 링크(`.agents/skills`, `.claude/skills`)와 활성 `config.yaml`, `.venv`가 없고 MCP도 등록되어 있지 않다. 사용자가 쓰기로 정하면 프로젝트 루트에서 켠다.
+이 스킬은 꺼진 상태로 배포된다. 스킬 발견 링크(`.agents/skills`, `.claude/skills`)와 활성 `config.yaml`, `.venv`가 없고 MCP도 등록되어 있지 않다. 켜고 끄는 것은 프로젝트 루트의 활성화 knob이 정한다. 공유 기본값은 `skill-activation.yaml`(모두 off)이고, 이 작업 공간의 값은 Git이 무시하는 `skill-activation.local.yaml`에 둔다. 사용자가 쓰기로 정하면 프로젝트 루트에서 켠다.
 
 ```bash
-python3 scripts/skill_activation.py enable deepeval-pack           # 무엇을 만들지 보기
-python3 scripts/skill_activation.py enable deepeval-pack --apply   # 링크 2개 + config.yaml(없을 때만)
+python3 scripts/skill_activation.py enable deepeval-pack           # 무엇이 바뀌는지 보기
+python3 scripts/skill_activation.py enable deepeval-pack --apply   # 로컬 knob on, 링크 2개
 ```
 
-끌 때는 `disable deepeval-pack --apply`로 링크만 지운다. config·프로필·키·`.venv`는 남는다. MCP 등록은 따로 해제한다.
+`enable`은 아래 준비 단계와 MCP 등록 명령을 출력한다. 명령은 출력만 하고 실행하지 않는다. 끌 때는 `disable deepeval-pack --apply`로 로컬 knob을 off로 바꾸고 링크를 지운다. config·프로필·키·`.venv`는 남는다. MCP 등록은 따로 해제하며, 등록이 남아 있으면 `python3 scripts/skill_activation.py check`가 실패하고 해제 명령을 알려 준다.
 
 ## 의존성
 

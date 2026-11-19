@@ -18,6 +18,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -949,6 +950,154 @@ class HookTests(unittest.TestCase):
         self.assertIn("브리핑", sb.hook()["hookSpecificOutput"]["additionalContext"])
         sb.ok("brief", "--done", "briefing.md")
         self.assertFalse(sb.ok("status")["briefing_due"]["hours"])
+
+
+
+ACTIVATION = HERE.parents[3] / "scripts" / "skill_activation.py"
+
+
+@unittest.skipUnless(ACTIVATION.is_file(), "the repository's activation script is not present")
+class SkillSelectionTests(unittest.TestCase):
+    """open --skills and close against the repository's activation script, in a throwaway root."""
+
+    def setUp(self):
+        self.sb = Sandbox(self, opened=False)
+        root = self.sb.tmp
+        for name in ("opt-a", "opt-b"):
+            (root / "skills" / name).mkdir(parents=True)
+            (root / "skills" / name / "SKILL.md").write_text(f"---\nname: {name}\n---\n", encoding="utf-8")
+        (root / "skill-activation.yaml").write_text(
+            "schema_version: 1\nskills:\n  opt-a: off\n  opt-b: off\n", encoding="utf-8")
+        self.home = root / "home"
+        self.home.mkdir()
+        patcher = mock.patch.dict(os.environ, {"PM_SKILL_ACTIVATION": str(ACTIVATION), "HOME": str(self.home)})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def linked(self, name: str) -> list[bool]:
+        return [(self.sb.tmp / base / name).is_symlink() for base in (".agents/skills", ".claude/skills")]
+
+    def record(self) -> dict:
+        return Sandbox.read(self.sb.inst / "activation.json")
+
+    def test_open_without_skills_asks_and_stops(self):
+        out = self.sb.no("open")
+        self.assertEqual(out["refused"], "selection-required")
+        self.assertEqual([c["skill"] for c in out["candidates"]], ["opt-a", "opt-b"])
+        asked = self.sb.events("hitl")
+        self.assertEqual((len(asked), asked[0]["kind"], asked[0]["id"]), (1, "skill-selection", out["hitl"]))
+        self.assertEqual(self.sb.events("campaign-open"), [])
+        self.assertFalse((self.sb.inst / "activation.json").exists())
+        self.assertEqual(self.sb.no("open")["hitl"], out["hitl"], "asking again reuses the open question")
+
+    def test_open_with_skills_turns_on_only_the_chosen(self):
+        asked = self.sb.no("open")["hitl"]
+        out = self.sb.ok("open", "--skills", "opt-a")
+        self.assertEqual(out["skills"], {"requested": ["opt-a"], "enabled": ["opt-a"], "pre_existing": []})
+        self.assertEqual(self.linked("opt-a"), [True, True])
+        self.assertEqual(self.linked("opt-b"), [False, False])
+        self.assertEqual((self.record()["enabled"], self.record()["hitl"]), (["opt-a"], asked))
+        self.assertEqual(self.sb.events("campaign-open")[0]["skills"]["enabled"], ["opt-a"])
+        self.assertEqual([a["id"] for a in self.sb.events("hitl-answer")], [asked])
+        self.sb.assert_lint()
+
+    def test_open_records_only_newly_enabled(self):
+        (self.sb.tmp / "skill-activation.local.yaml").write_text(
+            "schema_version: 1\nskills:\n  opt-b: on\n", encoding="utf-8")
+        out = self.sb.ok("open", "--skills", "opt-a,opt-b")
+        self.assertEqual((out["skills"]["enabled"], out["skills"]["pre_existing"]), (["opt-a"], ["opt-b"]))
+
+    def test_open_with_none_turns_nothing_on(self):
+        out = self.sb.ok("open", "--skills", "none")
+        self.assertEqual(out["skills"]["requested"], [])
+        self.assertEqual(self.linked("opt-a") + self.linked("opt-b"), [False] * 4)
+
+    def test_open_refuses_while_another_campaign_is_open(self):
+        (self.sb.base / "other").mkdir()
+        done = subprocess.run([sys.executable, "-B", str(ACTIVATION), "--root", str(self.sb.tmp), "--campaigns",
+                               str(self.sb.base), "campaign-open", "other", "--skills", "opt-b"],
+                              capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stdout)
+        out = self.sb.no("open", "--skills", "opt-a")
+        self.assertEqual((out["refused"], out["campaign"]), ("skill-activation-another-campaign-open", "other"))
+        self.assertIn("close", out["hint"])
+        self.assertEqual(self.sb.events("campaign-open"), [])
+        self.assertEqual(self.linked("opt-a"), [False, False])
+
+    def test_open_undoes_activation_when_sync_fails(self):
+        (self.sb.tmp / ".claude/skills").mkdir(parents=True)
+        (self.sb.tmp / ".claude/skills/opt-a").write_text("someone else's file", encoding="utf-8")
+        out = self.sb.no("open", "--skills", "opt-a")
+        self.assertEqual(out["refused"], "skill-activation-sync-failed")
+        self.assertFalse((self.sb.inst / "activation.json").exists())
+        self.assertFalse((self.sb.tmp / ".agents/skills/opt-a").is_symlink())
+        self.assertEqual(self.sb.events("campaign-open"), [])
+
+    def test_open_undoes_activation_when_open_fails_afterwards(self):
+        with mock.patch.object(pm.Campaign, "save_decl", side_effect=OSError("disk full")):
+            code, _ = self.sb.pm("open", "--skills", "opt-a")
+        self.assertEqual(code, 2)
+        self.assertFalse((self.sb.inst / "activation.json").exists())
+        self.assertEqual(self.linked("opt-a"), [False, False])
+
+    def test_close_turns_off_what_this_campaign_turned_on(self):
+        (self.sb.tmp / "skill-activation.local.yaml").write_text(
+            "schema_version: 1\nskills:\n  opt-b: on\n", encoding="utf-8")
+        self.sb.ok("open", "--skills", "opt-a,opt-b")
+        out = self.sb.no("close")
+        self.assertEqual(out["refused"], "final-not-passed")
+        out = self.sb.ok("close", "--reason", "stopping early for the test")
+        self.assertEqual(out["skills"], {"turned_off": ["opt-a"], "left_as_changed": []})
+        self.assertEqual(self.linked("opt-a"), [False, False])
+        self.assertEqual(self.linked("opt-b"), [True, True], "already on before the campaign: stays on")
+        self.assertFalse((self.sb.base / "ACTIVE").exists())
+        self.assertEqual(self.record()["state"], "closed")
+        closed = self.sb.events("campaign-close")
+        self.assertEqual((len(closed), closed[0]["reason"]), (1, "stopping early for the test"))
+
+    def test_open_refuses_before_asking_when_another_campaign_is_open(self):
+        (self.sb.base / "other").mkdir()
+        subprocess.run([sys.executable, "-B", str(ACTIVATION), "--root", str(self.sb.tmp), "--campaigns",
+                        str(self.sb.base), "campaign-open", "other", "--skills", "opt-b"], capture_output=True, check=True)
+        out = self.sb.no("open")
+        self.assertEqual((out["refused"], out["campaign"]), ("skill-activation-another-campaign-open", "other"))
+        self.assertEqual(self.sb.events("hitl"), [], "nothing is asked when the campaign cannot open")
+
+    def test_open_undoes_activation_when_the_hitl_answer_cannot_be_written(self):
+        self.sb.no("open")
+        real_emit = pm.Campaign.emit
+
+        def emit(camp, name, **fields):
+            if name == "hitl-answer":
+                raise OSError("journey not writable")
+            return real_emit(camp, name, **fields)
+        with mock.patch.object(pm.Campaign, "emit", emit):
+            code, _ = self.sb.pm("open", "--skills", "opt-a")
+        self.assertEqual(code, 2)
+        self.assertFalse((self.sb.inst / "activation.json").exists())
+        self.assertEqual(self.linked("opt-a"), [False, False])
+
+    def test_close_again_after_the_record_was_closed_by_hand(self):
+        self.sb.ok("open", "--skills", "opt-a")
+        subprocess.run([sys.executable, "-B", str(ACTIVATION), "--root", str(self.sb.tmp), "--campaigns",
+                        str(self.sb.base), "campaign-close", "camp"], capture_output=True, check=True)
+        out = self.sb.ok("close", "--reason", "closed the record by hand first")
+        self.assertIn("already closed", out["note"])
+        self.assertFalse((self.sb.base / "ACTIVE").exists())
+
+    def test_close_without_an_activation_record(self):
+        (self.sb.tmp / "skill-activation.yaml").unlink()
+        self.sb.ok("open")
+        (self.sb.tmp / "skill-activation.yaml").write_text("schema_version: 1\nskills:\n  opt-a: off\n",
+                                                          encoding="utf-8")
+        out = self.sb.ok("close", "--reason", "opened before skill selection existed")
+        self.assertIn("no activation record", out["note"])
+        self.assertFalse((self.sb.base / "ACTIVE").exists())
+
+    def test_skills_needs_the_knob(self):
+        (self.sb.tmp / "skill-activation.yaml").unlink()
+        self.assertIn("--skills needs", self.sb.no("open", "--skills", "opt-a", code=2)["error"])
+        self.sb.ok("open")
 
 
 if __name__ == "__main__":

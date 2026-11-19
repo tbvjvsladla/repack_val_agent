@@ -31,6 +31,7 @@ campaigns/
    ├─ evidence_pointers.json   근거의 위치
    ├─ briefing.md      최신 브리핑 하나 (고쳐 쓴다)
    ├─ monitor.json     종료 훅의 카운터
+   ├─ activation.json  이 캠페인이 켠 선택 수단 스킬의 기록
    └─ .lock            실행기의 잠금
 ```
 
@@ -43,6 +44,7 @@ campaigns/
 | `journey.jsonl` | 사건: 단계 전이, 검사, gate, 구조 변경, 검토, 사람에게 넘김, 정체 | 실행기가 줄을 추가한다. 기존 줄을 고치지 않는다 |
 | `evidence_pointers.json` | 원시 근거와 문서의 경로 | 메인 에이전트가 추가한다 |
 | `briefing.md` | 최신 브리핑 | 브리핑 작성자(새 맥락의 서브에이전트) |
+| `activation.json` | 이 캠페인이 고른 선택 수단 스킬(`requested`), 그중 이 캠페인이 켠 것(`enabled`)과 이미 켜져 있던 것(`pre_existing`), 상태(`open`/`closed`), 닫을 때 끈 것(`turned_off`)과 사람이 이미 꺼 둔 것(`left_as_changed`) | `open --skills`·`close` 때 `scripts/skill_activation.py`가 쓴다. 손으로 고치지 않는다 |
 
 실행기는 `python3 skills/progress-monitor/scripts/pm.py`다. `ACTIVE`에는 활성 인스턴스의 이름 하나만 적는다. 없으면 활성 캠페인이 없는 것이다.
 
@@ -66,8 +68,9 @@ campaigns/
 4. 각 cell의 `cell.md`와 단계 파일을 채운다. 단계 파일에는 `cell`, `proof.check`, `proof.expect`를 미리 적는다.
 5. `ACTIVE`에 인스턴스 이름을 적는다.
 6. 사용자에게 브리핑 설정 두 가지를 묻는다: 단계가 전환될 때 브리핑을 받을지(기본 받음), 몇 시간마다 받을지(기본 없음).
-7. `python3 skills/progress-monitor/scripts/pm.py open [--briefing-on-phase true|false] [--briefing-every-hours <수>]`를 부른다. 답이 없었으면 인자 없이 부른다.
-8. `python3 scripts/check_campaign.py campaigns/<camp-id>`가 통과하는지 확인한다.
+7. 저장소에 활성화 knob(`skill-activation.yaml`)이 있으면 이 캠페인이 켤 선택 수단 스킬을 사용자에게 묻는다. `open`을 `--skills` 없이 부르면 후보와 지금의 on/off를 보여 주고 hitl(`skill-selection`)을 남긴 채 `selection-required`로 멈춘다. 그 후보를 사용자에게 보이고 답을 받는다.
+8. `python3 skills/progress-monitor/scripts/pm.py open [--briefing-on-phase true|false] [--briefing-every-hours <수>] [--skills <a,b>|none]`를 부른다. `--skills`로 고른 스킬 중 꺼져 있던 것만 켜고 `activation.json`에 기록한다. 아무것도 켜지 않으려면 `--skills none`을 쓴다. 다른 캠페인의 기록이 열려 있으면 거절하고 닫는 방법을 알려 준다. 브리핑 답이 없었으면 브리핑 인자는 빼고 부른다.
+9. `python3 scripts/check_campaign.py campaigns/<camp-id>`가 통과하는지 확인한다.
 
 ## 채우는 규칙
 
@@ -186,7 +189,8 @@ campaigns/
 
 | `event` | 필드 |
 |---|---|
-| `campaign-open` ★ | `cells`(`[{"cell", "group"}]`), `groups`, `briefing`, `briefing_source`(`user` 또는 `default`) |
+| `campaign-open` ★ | `cells`(`[{"cell", "group"}]`), `groups`, `briefing`, `briefing_source`(`user` 또는 `default`), 스킬을 골랐으면 `skills`(`requested`, `enabled`, `pre_existing`) |
+| `campaign-close` | `reason`, `final`(마지막 전체 검증의 상태), 기록이 있었으면 `skills`(`turned_off`, `left_as_changed`) |
 | `phase-start`, `phase-retry` | `cell`, `phase`, `attempt` |
 | `phase-close` | `cell`, `phase`, `ok`, `log` |
 | `check` | `check`, `outcome`, `scope`, `receipt`, `reason` |
@@ -238,13 +242,18 @@ campaigns/
 
 **검토자가 내놓는 것**
 
-지적 목록이다. 지적마다 차단인지 비차단인지, 근거의 위치, 다시 확인할 명령을 적는다. 검토자는 파일을 고치지 않는다.
+지적 목록이다. 지적마다 차단인지 비차단인지, 근거의 위치, 차단이면 어긴 기준의 위치(plan 절, checklist 항목, 규칙 줄), 다시 확인할 명령을 적는다. 검토자는 파일을 고치지 않는다.
 
 **끝내는 규칙**
 
-- 차단은 완료 기준·보존 계약·권한을 어기거나 결과가 틀린 경우다. 그 밖은 비차단이다.
-- 차단 지적이 없으면 그 회차로 닫는다. 비차단 지적은 기록만 한다.
-- 차단 지적을 고친 뒤에만 다음 회차를 연다. 다음 회차는 바뀐 부분을 본다. 고치려면 `cell reopen`으로 다시 열고, gate가 다시 통과한 뒤에 검토를 받는다.
+상한은 채울 목표가 아니다. 정본은 [작업수행규칙](../rules/workflow.md)의 "검토의 종료"이고, cell에서는 다음과 같다.
+
+- 차단은 완료 기준·보존 계약·권한을 어기거나 결과가 틀린 경우다. 그 밖은 비차단이고, 어긴 기준의 위치나 재현(`repro`)이 빠진 지적도 비차단이다.
+- 차단 지적이 없으면 그 회차로 닫는다. 비차단 지적은 기록만 하고 캠페인 안에서 고치지 않는다. 브리핑의 잔여로 올린다.
+- 차단 지적을 고친 뒤에만 다음 회차를 연다. 고치려면 `cell reopen`으로 다시 열고, gate가 다시 통과한 뒤에 검토를 받는다.
+- 2회차부터 검토자는 하나이고(호스트가 정할 수 있으면 추론 강도를 낮게), 앞 회차 차단 지적의 해소와 그 수정이 바꾼 줄의 회귀만 본다. 새 결함을 찾으라고 맡기지 않는다. 늦게 발견한 다른 문제는 비차단으로 남겨 브리핑의 잔여로 올린다.
+- 1회차의 검토자 수와 도구는 plan이 사유와 함께 정한다. 정하지 않았으면 하나다. 검토자에게는 차단을 먼저, 비차단은 다섯 건까지만 요청한다.
+- 회차는 cell마다 센다. 차단 없이 닫힌 cell은 같은 묶음의 다른 cell이 다음 회차로 가도 다시 검토하지 않는다.
 - 결론이 난 지적은 다시 열지 않는다. 어떤 지적이 결론 났는지는 메인 에이전트가 `journey.jsonl`의 검토 사건으로 관리하고 검토자에게 알려 준다.
 - 검토자가 실행되지 않았으면 통과로 세지 않는다.
 - 회차가 `review.round_cap`에 닿았는데 차단 지적이 남거나, 같은 지적과 수정이 새 증거 없이 되풀이되면 그 cell을 멈추고 사람에게 넘긴다. 통과로 치지 않는다.
@@ -299,7 +308,8 @@ python3 scripts/check_campaign.py --list-control          # 규칙별 자체검�
 ## 끝낼 때
 
 - 모든 묶음이 통과하거나 멈추거나 취소되면 마지막 전체 검증을 돌리고, 그 결과를 1계층 checklist에 통합 검증으로 적는다. 멈춘 cell과 gate에서 확인되지 않은 검사는 그 상태 그대로 적는다.
-- 끝난 인스턴스는 로컬에 남긴다. `ACTIVE`만 지우거나 다음 인스턴스로 바꾼다.
+- `python3 skills/progress-monitor/scripts/pm.py close`로 닫는다. 마지막 전체 검증이 통과하지 않았으면 `--reason <사유>`가 있어야 한다. 이 캠페인이 켰고 지금도 켜진 선택 수단 스킬만 끄고(사람이 중간에 바꾼 값은 그대로 둔다) `ACTIVE`를 지운다.
+- 끝난 인스턴스는 로컬에 남긴다. `ACTIVE`를 손으로 지웠다면 `python3 scripts/skill_activation.py campaign-close <camp-id>`로 그 캠페인이 켠 스킬을 끈다. 열린 기록이 남아 있으면 `python3 scripts/skill_activation.py check`가 실패한다.
 - 인스턴스와 `ACTIVE`는 Git이 추적하지 않는다. 추적하는 것은 이 문서와 `_template`뿐이다.
 
 ## 출처

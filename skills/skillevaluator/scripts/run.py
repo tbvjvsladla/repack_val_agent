@@ -9,7 +9,8 @@ default agent) is set from these. Key values are never printed.
     python3 -B scripts/run.py check
     python3 -B scripts/run.py exec -- tier1 skills/<name> --no-llm
 
-Needs Python 3.9+ and PyYAML. The CLI is `skillevaluator` on PATH, SKILLEVALUATOR_BIN, or --cli.
+Needs Python 3.9+ and PyYAML. The CLI is --cli, else SKILLEVALUATOR_BIN, else this skill's
+.venv/bin/skillevaluator, else `skillevaluator` on PATH.
 """
 from __future__ import annotations
 
@@ -164,15 +165,57 @@ def tiers_value(args: list[str]) -> set[str]:
     return {"1", "2", "3"}
 
 
+# OpenCode on an OpenAI-compatible gateway takes openai/MODEL (references/providers.md), and the CLI's
+# default agent for that provider is not opencode, so the agent is named as well.
+GATEWAY_AGENT = {"deepseek": "openai/"}
+
+
+# tier3 subcommands of SkillEvaluator 1.0.1 (update when the CLI adds one). Only `evaluate`, `doctor` and the
+# direct `tier3 PATH` form take both --agents and --agent-model; the others get nothing appended.
+TIER3_COMMANDS = {
+    "accept-traces", "compare", "compare-versions", "create-eval-dataset", "doctor", "evaluate", "feedback",
+    "harbor-view", "history", "import-metrics", "import-traces", "init-custom-grader", "init-harbor-task",
+    "interact", "migrate-dataset", "select-decoys", "validate", "validate-grader", "view",
+}
+
+
+def runs_agents(args: list[str]) -> bool:
+    sub = next((a for a in args[1:] if not a.startswith("-")), None)
+    return sub in {"evaluate", "doctor"} or (sub is not None and sub not in TIER3_COMMANDS)
+
+
+def doctor_tier(args: list[str]) -> str:
+    for i, arg in enumerate(args):
+        if arg == "--tier" and i + 1 < len(args):
+            return args[i + 1]
+        if arg.startswith("--tier="):
+            return arg.split("=", 1)[1]
+    return "3"
+
+
 def cli_args(selection: dict, args: list[str]) -> list[str]:
     """For Tier 3 without an explicit agent choice, pin the provider's default agent to the profile model."""
     if not args or selection["model"] is None or selection["provider"] is None:
         return args
-    tier3 = args[0] == "tier3" or (args[0] == "validate" and "3" in tiers_value(args))
-    explicit = any(a in {"-a", "--agent", "--agents", "--agent-model"} or a.startswith(("--agent=", "--agent-model=")) for a in args)
+    tier3 = ((args[0] == "tier3" and runs_agents(args))
+             or (args[0] == "validate" and "3" in tiers_value(args))
+             or (args[0] == "doctor" and doctor_tier(args) in {"3", "all"}))
+    explicit = any(a in {"-a", "--agent", "--agents", "--agent-model"} or a.startswith(("--agent=", "--agents=", "--agent-model=")) for a in args)
     if tier3 and not explicit:
-        return [*args, "--agent-model", f"{PROVIDERS[selection['provider']][4]}={selection['model']}"]
+        provider = selection["provider"]
+        agent = PROVIDERS[provider][4]
+        if provider in GATEWAY_AGENT:
+            return [*args, "--agents", agent, "--agent-model", f"{agent}={GATEWAY_AGENT[provider]}{selection['model']}"]
+        return [*args, "--agent-model", f"{agent}={selection['model']}"]
     return args
+
+
+def default_cli(skill: Path, environ: dict) -> str:
+    """SKILLEVALUATOR_BIN, else the CLI in this skill's own .venv, else `skillevaluator` on PATH."""
+    if environ.get("SKILLEVALUATOR_BIN"):
+        return environ["SKILLEVALUATOR_BIN"]
+    local = skill / ".venv" / "bin" / "skillevaluator"
+    return str(local) if os.access(local, os.X_OK) else "skillevaluator"
 
 
 def main() -> int:
@@ -181,7 +224,7 @@ def main() -> int:
     parser.add_argument("command", choices=["check", "exec"])
     parser.add_argument("--config", type=Path, default=SKILL / "config.yaml")
     parser.add_argument("--env-file", type=Path, default=root / "envs" / ".env")
-    parser.add_argument("--cli", default=os.environ.get("SKILLEVALUATOR_BIN", "skillevaluator"))
+    parser.add_argument("--cli", default=default_cli(SKILL, dict(os.environ)))
     argv = sys.argv[1:]
     split = argv.index("--") if "--" in argv else len(argv)
     args = parser.parse_args(argv[:split])

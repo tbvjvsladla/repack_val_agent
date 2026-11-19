@@ -58,7 +58,52 @@ repack_val_agent는 코드베이스·스킬·MCP·플러그인 등의 **개선�
 | [deepeval-pack](skills/deepeval-pack/SKILL.md) | 답변·검색 문맥·기대 답변을 평가할 때 | 설정한 Judge·메트릭에 따른 케이스별 점수·이유·오류 |
 | [skillevaluator](skills/skillevaluator/SKILL.md) | 스킬의 형식·안전·품질을 점검하거나, 스킬이 있을 때와 없을 때의 에이전트 결과를 비교할 때 | 단계(Tier)별 점수·판정·발견 사항과 실행하지 않은 범위 |
 
-두 평가 도구는 **비활성 상태로 배포**합니다. 정본 폴더는 `skills/`에 있지만 하네스가 발견하는 링크와 활성 설정은 없습니다. 받은 시스템의 사용자가 쓰기로 정하면 `python3 scripts/skill_activation.py enable <skill> --apply`로 켭니다. 이 명령은 발견 링크와 `config.yaml`(없을 때만)을 만들고, 의존성·CLI 설치와 MCP 등록은 각 스킬의 안내대로 사용자가 합니다.
+### 선택 수단은 꺼진 채 배포하고, 필요할 때만 켭니다
+
+선택 가능한 수단 여섯 개는 **모두 꺼진 채 배포**합니다. 꺼진 스킬은 하네스가 발견하지 못하므로, 세션의 스킬 목록과 맥락에 올라오지 않습니다.
+
+**등록 방식.** 스킬의 정본 폴더는 늘 `skills/<name>/`에 있습니다. 하네스는 그 폴더를 직접 읽지 않고, 발견 폴더의 상대 심볼릭 링크로 찾습니다. Codex는 `.agents/skills/<name>`, Claude Code는 `.claude/skills/<name>`을 씁니다. 기반 도구와 harness2의 링크는 Git이 추적합니다. 선택 수단의 링크는 Git이 무시하며, 활성화 knob이 링크의 유무를 정합니다. `settings.json`과 `settings.local.json`처럼 knob 파일은 두 개입니다.
+
+| 파일 | 추적 | 내용 |
+|---|---|---|
+| `skill-activation.yaml` | 추적·배포 | 공유 기본값. 여섯 모두 `off`입니다. 여기에 이름이 오른 스킬이 곧 선택 수단입니다. 켤 때 필요한 MCP 등록과 준비 단계(`mcp`, `setup`)도 여기에 적습니다. |
+| `skill-activation.local.yaml` | Git 제외 | 이 작업 공간의 값입니다. 사람과 캠페인이 고치며, 로컬 값이 공유 값을 덮습니다. |
+
+knob의 값이 정본이고, [scripts/skill_activation.py](scripts/skill_activation.py)가 링크를 그 값에 결정론적으로 맞춥니다. 스크립트는 공유 knob에 오른 스킬의 링크만 만들거나 지웁니다. 같은 자리에 링크가 아닌 파일이 있으면 건드리지 않고 실패합니다.
+
+```bash
+python3 scripts/skill_activation.py status          # 스킬별 병합 값·링크 상태·MCP 등록
+python3 scripts/skill_activation.py sync --apply    # 링크를 knob에 맞춤 (--apply 없으면 계획만)
+python3 scripts/skill_activation.py check           # knob·링크 불일치, 꺼진 스킬의 MCP 잔여, 열린 캠페인 기록 검사
+```
+
+**사람이 직접 켜고 끄기.** `enable`과 `disable`은 로컬 knob만 고친 뒤 `sync`를 돌립니다. `--apply`가 없으면 바꿀 내용만 보여 줍니다.
+
+```bash
+python3 scripts/skill_activation.py enable deepeval-pack --apply
+python3 scripts/skill_activation.py disable deepeval-pack --apply
+```
+
+- `skill-activation.local.yaml`에 `<name>: on|off`를 직접 적은 뒤 `sync --apply`를 돌려도 결과는 같습니다.
+- 스크립트는 의존성을 설치하지 않습니다. 사용자 설정(`~/.claude.json`, `~/.codex/`)의 MCP 등록도 바꾸지 않습니다.
+  - `enable`은 준비 단계와 MCP 등록 명령을 출력합니다. 사용자가 그 명령을 직접 실행합니다.
+  - `disable`은 남은 MCP 등록을 지우는 명령을 출력합니다. 꺼진 스킬의 MCP 등록이 남아 있으면 `check`가 실패합니다.
+- 바뀐 활성 상태는 하네스의 **새 세션**부터 반영됩니다. 하네스는 세션을 시작할 때 스킬을 찾기 때문입니다.
+
+**캠페인이 관리하는 방식.** 캠페인([campaigns/](campaigns/README.md))을 열고 닫을 때는 [progress-monitor](skills/progress-monitor/SKILL.md)의 실행기 `pm.py`가 활성화 스크립트를 부릅니다. progress-monitor는 특정 스킬의 이름을 알지 못합니다. 후보는 늘 공유 knob에서 읽습니다.
+
+1. **열 때 묻기(HITL):** `pm.py open`을 `--skills` 없이 부르면 공유 knob의 후보를 보여 줍니다. 그리고 `skill-selection` 종류의 사람 확인 요청을 남기고 0이 아닌 값으로 멈춥니다.
+2. **고른 것만 켜기:** 사용자가 고르면 `pm.py open --skills rust-repack,code-review`처럼 다시 엽니다. 아무것도 켜지 않으려면 `--skills none`을 씁니다.
+   - 고른 스킬 가운데 꺼져 있던 것만 켭니다. 그 사실을 `campaigns/<id>/activation.json`에 `enabled`로 적습니다.
+   - 이미 켜져 있던 것은 `pre_existing`으로 적습니다.
+   - 링크 동기화가 실패하면 knob과 링크를 열기 전 상태로 되돌리고, 캠페인을 열지 않습니다.
+3. **한 번에 하나:** 다른 캠페인이 열려 있으면 열기를 거절합니다.
+4. **닫을 때 끄기:** `pm.py close`는 그 캠페인이 켰고 지금도 켜져 있는 스킬만 끄고, `campaigns/ACTIVE`를 지웁니다.
+   - 열기 전부터 켜져 있던 스킬은 그대로 둡니다. 수행 중에 사람이 끈 스킬도 그대로 둡니다.
+   - 마지막 전체 검증이 통과하지 않았으면 `--reason <사유>`가 있어야 닫힙니다.
+5. **손으로 정리한 경우:** `ACTIVE`를 손으로 지웠다면 `python3 scripts/skill_activation.py campaign-close <id>`로 그 캠페인이 켠 스킬을 끕니다. 그러지 않으면 기록이 열린 채 남아 `check`가 실패합니다.
+
+캠페인 밖의 과업에서도 사람이 위의 `enable`로 켤 수 있습니다. 어떤 스킬을 쓸지는 과업 plan에 적습니다.
 
 외부 LLM 설정은 두 스킬이 같은 방식으로 받습니다. 각 스킬의 `config.yaml`에는 `provider`와 `judge_profile` 두 knob만 있습니다. `judge_profile`은 프로젝트 루트 `envs/`의 프로필 파일(model과 생성 설정)을 가리키고, 키는 같은 폴더의 `envs/.env`에서 읽습니다. 스킬 안의 어댑터가 이 공용 프로필을 자기 런타임의 설정으로 바꿉니다(어댑터 패턴).
 
@@ -127,7 +172,7 @@ skills/<skill>/config.yaml    provider: anthropic
 - **정체 감시:** 종료 훅이 남은 일을 알려 주고, 상태 변화 없이 같은 일이 이어지면 한 번 다시 시도한 뒤 우회합니다. 훅은 추적하지 않는 로컬 설정에만 둡니다.
 - **방향 조정:** 수행 중의 항목 추가·취소·묶음 재편을 사건으로 남깁니다. 후보가 둘 이상이면 실제로 실행해 비교합니다. 목표·수용 기준·검사 기준·상한을 바꾸는 일은 사람에게 넘기고, 그동안 다른 항목을 계속합니다.
 
-실행기는 수용을 판정하지 않습니다. 덮음과 입력의 선언이 옳은지는 선언한 사람의 책임이고, 최종 수용은 1계층 checklist와 과업 책임자가 맡습니다. 새 맥락 검토는 plan에서 표시한 항목만 받으며, 회차 상한(기본 3)에 닿으면 사람에게 넘깁니다.
+실행기는 수용을 판정하지 않습니다. 덮음과 입력의 선언이 옳은지는 선언한 사람의 책임이고, 최종 수용은 1계층 checklist와 과업 책임자가 맡습니다. 새 맥락 검토는 plan에서 표시한 항목만 받습니다. 차단 지적이 없으면 그 회차로 닫고, 2회차부터는 앞 회차 차단 지적의 해소만 확인합니다. 회차 상한(기본 3)은 채울 목표가 아니라 멈춤 장치이며, 닿으면 사람에게 넘깁니다.
 
 ## 저장소 안내
 
@@ -147,7 +192,7 @@ skills/<skill>/config.yaml    provider: anthropic
 | `scripts/check_campaign.py` | 캠페인의 틀과 인스턴스 형식을 읽기 전용으로 검사 |
 | [skills/progress-monitor](skills/progress-monitor/SKILL.md) | 캠페인의 운영 규칙과 실행기: 검증 묶음의 gate, 검사 결과의 재사용, 정체 감시, 방향 조정 |
 | `envs/` | 스킬이 쓰는 API 키와 Judge 프로필(로컬 전용). 예시만 추적 |
-| `scripts/skill_activation.py` | 비활성으로 배포되는 opt-in 스킬의 켜기·끄기 |
+| `skill-activation.yaml`, `scripts/skill_activation.py` | 선택 수단의 활성화 knob(공유 기본값)과 링크 동기화·검사·캠페인별 켜기·끄기. 로컬 값은 `skill-activation.local.yaml` |
 | [__llm-wiki/](__llm-wiki/) | 로컬 포인터 위키를 만들 계약·용어집 |
 | [repack_target/](repack_target/README.md) | 로컬 개선 대상과 최종 산출물을 준비할 공간. 사용 지침만 추적 |
 | [PUBLICATION.md](PUBLICATION.md) | 공개 범위와 공개본 생성 절차 |
@@ -198,11 +243,11 @@ python3 scripts/skill_activation.py enable deepeval-pack --apply
 (cd skills/deepeval-pack && uv sync --frozen)
 cp -n envs/.env.example envs/.env                         # 사용할 키만 채웁니다
 cp -n envs/profile.example.yaml envs/opus_profile.yaml    # model·settings를 고칩니다
-# skills/deepeval-pack/config.yaml: provider, judge_profile
+cp -n skills/deepeval-pack/config.example.yaml skills/deepeval-pack/config.yaml   # provider, judge_profile을 채웁니다
 skills/deepeval-pack/.venv/bin/python -B skills/deepeval-pack/scripts/run.py check
 ```
 
-`skillevaluator`는 `enable skillevaluator --apply`로 켜고, SkillEvaluator CLI를 설치한 뒤 `python3 -B skills/skillevaluator/scripts/run.py check`로 확인합니다. 실행은 `run.py exec -- <CLI 인자>`로 하며, 키 없이 되는 Tier 1부터 시작합니다.
+`skillevaluator`는 `enable skillevaluator --apply`로 켜고, SkillEvaluator CLI를 스킬 폴더의 `.venv`에 설치한 뒤(`enable`이 명령을 출력합니다) `python3 -B skills/skillevaluator/scripts/run.py check`로 확인합니다. 실행은 `run.py exec -- <CLI 인자>`로 하며, 키 없이 되는 Tier 1부터 시작합니다.
 
 ## 문서 작성과 배포 경계
 

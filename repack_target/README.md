@@ -25,7 +25,7 @@
 | 경로 | 역할 |
 |---|---|
 | `skills/` | val_agent의 지휘 작업에 사용하는 스킬의 정본. 재사용 도구로 Git 추적 |
-| `.agents/skills/`, `.claude/skills/` | 하네스별 스킬 발견용 디렉터리 심볼릭 링크. opt-in 스킬은 로컬에서 켤 때만 생긴다 |
+| `.agents/skills/`, `.claude/skills/` | 하네스별 스킬 발견용 디렉터리 심볼릭 링크. 선택 수단 스킬의 링크는 활성화 knob(`skill-activation.yaml`, 로컬 `skill-activation.local.yaml`)에서 켤 때만 생긴다 |
 | `seed/` | 참고 원본·조사 자료. 로컬 보관 |
 | `temp/` | 임시 검증·공개 후보. 로컬 보관 |
 | `repack_target/` | 이번 과업에서 실제 개선할 콘텐츠와 그 결과. 이 지침을 제외하고 로컬 보관 |

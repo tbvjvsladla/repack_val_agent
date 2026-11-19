@@ -31,9 +31,19 @@
 !/envs/.env.example
 !/envs/profile.example.yaml
 
-# Opt-in skills ship inactive; scripts/skill_activation.py lays these links locally.
+# Optional skills follow skill-activation.yaml (shared, tracked) and
+# skill-activation.local.yaml (local); scripts/skill_activation.py lays their links locally.
+/skill-activation.local.yaml
+/.agents/skills/anti-code-slop
+/.claude/skills/anti-code-slop
+/.agents/skills/code-review
+/.claude/skills/code-review
 /.agents/skills/deepeval-pack
 /.claude/skills/deepeval-pack
+/.agents/skills/pr-review-toolkit
+/.claude/skills/pr-review-toolkit
+/.agents/skills/rust-repack
+/.claude/skills/rust-repack
 /.agents/skills/skillevaluator
 /.claude/skills/skillevaluator
 
@@ -47,6 +57,8 @@
 !.env.example
 *.local.json
 *.local.toml
+*.local.yaml
+*.local.yml
 auth.json
 credentials.json
 *.pem

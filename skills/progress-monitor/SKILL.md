@@ -28,13 +28,13 @@ metadata:
 
 ## 흐름
 
-1. **연다.** 인스턴스를 만들고 `ACTIVE`를 적는다(`campaigns/README.md`). 사용자에게 브리핑 설정 두 가지를 묻고 `open`을 부른다([monitor.md](references/monitor.md)).
+1. **연다.** 인스턴스를 만들고 `ACTIVE`를 적는다(`campaigns/README.md`). 사용자에게 브리핑 설정 두 가지와, 저장소에 활성화 knob이 있으면 이 캠페인이 켤 선택 수단 스킬을 묻고 `open`을 부른다([monitor.md](references/monitor.md)).
 2. **단계를 돌린다.** `status`의 "스스로 할 수 있는 일"을 위에서부터 한다. 단계마다 새 수행자에게 수행자 지시문을 넘긴다([monitor.md](references/monitor.md)).
 3. **gate를 돌린다.** 묶음의 구성원이 `change`를 모두 끝내면 `gate run`을 부른다. 실패하면 원인을 가려 그 cell을 `cell reopen`으로 다시 연다([gate.md](references/gate.md)).
 4. **검토를 받는다.** 검토 표시가 있는 cell은 gate가 통과한 뒤 새 맥락 검토를 받고 `review record`, `cell close`로 닫는다. 검토의 종료 규칙은 `campaigns/README.md`에 있다.
 5. **방향을 조정한다.** 일이 달라지면 `cell add`, `cell cancel`, `cell move`로 구성을 바꾼다. 후보가 둘 이상이면 실제로 실행해 비교한다([direction.md](references/direction.md)).
 6. **마지막 전체 검증을 돌린다.** 모든 묶음이 통과하거나 멈추거나 취소되면 `final run`을 부른다.
-7. **닫는다.** 결과를 과업의 checklist에 적는다. 멈춘 cell과 gate에서 확인되지 않은 검사는 그 상태 그대로 적는다.
+7. **닫는다.** 결과를 과업의 checklist에 적는다. 멈춘 cell과 gate에서 확인되지 않은 검사는 그 상태 그대로 적는다. `close`를 불러 이 캠페인이 켠 스킬을 끄고 `ACTIVE`를 지운다.
 
 세션을 이어받았으면 `status`를 먼저 부르고 `monitor reset`을 한 번 한다.
 
@@ -46,7 +46,8 @@ metadata:
 
 | 명령 | 하는 일 |
 |---|---|
-| `open [--briefing-on-phase true\|false] [--briefing-every-hours <수>]` | 선언을 확인하고 캠페인을 연다 |
+| `open [--briefing-on-phase true\|false] [--briefing-every-hours <수>] [--skills <a,b>\|none]` | 선언을 확인하고 캠페인을 연다. 활성화 knob이 있는 저장소에서 `--skills`가 없으면 후보를 보이고 `selection-required`로 멈춘다 |
+| `close [--reason <사유>]` | 이 캠페인이 켰고 지금도 켜진 선택 수단 스킬만 끄고 `ACTIVE`를 지운다. 마지막 전체 검증이 통과하지 않았으면 사유가 필요하다 |
 | `status` | 상태, 스스로 할 수 있는 일, 기다리는 결정, `STALE`인 통과, 브리핑 때를 보인다 |
 | `phase start\|close\|retry <cell> <phase>` | 단계를 시작한다, 증명 명령을 실행해 닫는다, 정체한 단계를 다시 시작한다 |
 | `gate run <group> [--force <검사> --reason <사유>]` | 묶음의 검사를 규칙대로 돌린다 |

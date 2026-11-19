@@ -77,6 +77,15 @@ class Adapter(unittest.TestCase):
         seen = json.loads(out)
         self.assertEqual((code, seen["provider"], seen["base_url"]), (0, "openai-compatible", "https://api.deepseek.com"))
         self.assertTrue(seen["key_is_fixture"])
+        for command in (("tier3", "evaluate", "x"), ("tier3", "x"), ("doctor", "--verify-models")):
+            code, out = self.run_adapter("provider: deepseek\njudge_profile: deepseek_flash_profile.yaml\n",
+                                         "exec", "--", *command, env_file="DEEPSEEK_API_KEY=fixture-key\n")
+            self.assertEqual(json.loads(out)["argv"][-4:],
+                             ["--agents", "opencode", "--agent-model", "opencode=openai/deepseek-flash"], command)
+        for command in (("doctor", "--tier", "1"), ("tier3", "validate", "x", "--strict"), ("tier3", "view", "x")):
+            code, out = self.run_adapter("provider: deepseek\njudge_profile: deepseek_flash_profile.yaml\n",
+                                         "exec", "--", *command, env_file="DEEPSEEK_API_KEY=fixture-key\n")
+            self.assertEqual(json.loads(out)["argv"], list(command), "commands without agent options stay as given")
 
     def test_process_environment_wins_over_env_file(self) -> None:
         _, out = self.run_adapter("provider: anthropic\njudge_profile: opus_profile.yaml\n", "exec", "--", "tier1", "x",
@@ -87,6 +96,18 @@ class Adapter(unittest.TestCase):
         code, out = self.run_adapter("provider: null\njudge_profile: null\n", "exec", "--", "quality-check", "x")
         seen = json.loads(out)
         self.assertEqual((code, seen["provider"], seen["names"]), (0, None, []))
+
+    def test_cli_prefers_the_skill_venv_over_path(self) -> None:
+        sys.path.insert(0, str(RUN.parent))
+        import run  # noqa: E402 - the adapter module, imported only for this lookup
+        skill = self.root / "skill"
+        self.assertEqual(run.default_cli(skill, {}), "skillevaluator")
+        local = skill / ".venv" / "bin" / "skillevaluator"
+        local.parent.mkdir(parents=True)
+        local.write_text("#!/bin/sh\n", encoding="utf-8")
+        local.chmod(0o755)
+        self.assertEqual(run.default_cli(skill, {}), str(local))
+        self.assertEqual(run.default_cli(skill, {"SKILLEVALUATOR_BIN": "/opt/se"}), "/opt/se")
 
     def test_rejections(self) -> None:
         cases = {

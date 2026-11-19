@@ -1,0 +1,34 @@
+# Which optional skills are on. Shared defaults, tracked and shipped.
+# A skill listed under `skills` is an optional means: its discovery links in
+# .agents/skills and .claude/skills follow this knob instead of Git.
+# Turn one on locally in skill-activation.local.yaml (Git-ignored), or with
+#   python3 scripts/skill_activation.py enable <skill> --apply
+# Base tools are not listed here and stay always on.
+# Keep `skills:` as a block, one "  <name>: on|off" line per skill; the adapter check and the
+# public export read the names from those lines.
+schema_version: 1
+skills:
+  code-review: off
+  rust-repack: off
+  pr-review-toolkit: off
+  anti-code-slop: off
+  deepeval-pack: off
+  skillevaluator: off
+# MCP servers a person registers when the skill is on. The script only prints the commands.
+mcp:
+  deepeval-pack:
+    server: deepeval
+    command: [skills/deepeval-pack/.venv/bin/python, -B, skills/deepeval-pack/scripts/run.py, serve]
+# Setup that turning a skill on does not perform; shown by `enable`.
+setup:
+  deepeval-pack:
+    - "(cd skills/deepeval-pack && uv sync --frozen)"
+    - "put the Judge profile in envs/ (see envs/profile.example.yaml) and the provider key in envs/.env"
+    - "set provider and judge_profile in skills/deepeval-pack/config.yaml (copy config.example.yaml when missing)"
+    - "skills/deepeval-pack/.venv/bin/python -B skills/deepeval-pack/scripts/run.py check"
+    - "register the MCP server with the printed command (skills/deepeval-pack/references/installation.md)"
+  skillevaluator:
+    - "uv venv --python 3.13 skills/skillevaluator/.venv && uv pip install --python skills/skillevaluator/.venv/bin/python \"skillevaluator[all]\""
+    - "put the Judge profile in envs/ (see envs/profile.example.yaml) and the provider key in envs/.env"
+    - "set provider and judge_profile in skills/skillevaluator/config.yaml (copy config.example.yaml when missing)"
+    - "python3 -B skills/skillevaluator/scripts/run.py check"

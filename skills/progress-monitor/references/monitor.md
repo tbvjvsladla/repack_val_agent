@@ -7,7 +7,16 @@
 1. 단계가 전환될 때 브리핑을 받을지. 기본값은 받음이다.
 2. 몇 시간마다 브리핑을 받을지. 기본값은 없음이다.
 
-답을 `open`의 인자로 준다(`--briefing-on-phase true|false`, `--briefing-every-hours <수>`). 사용자가 답하지 않고 넘어가면 인자 없이 `open`을 부른다. 기본값이 쓰이고 그 사실이 사건에 남는다. 캠페인마다 다시 묻는다.
+답을 `open`의 인자로 준다(`--briefing-on-phase true|false`, `--briefing-every-hours <수>`). 사용자가 답하지 않고 넘어가면 브리핑 인자 없이 `open`을 부른다. 기본값이 쓰이고 그 사실이 사건에 남는다. 캠페인마다 다시 묻는다.
+
+저장소 루트에 활성화 knob(`skill-activation.yaml`)과 그 스크립트(`scripts/skill_activation.py`, 환경 변수 `PM_SKILL_ACTIVATION`으로 바꿀 수 있다)가 있으면, 이 캠페인이 켤 선택 수단 스킬도 묻는다.
+
+1. `open`을 `--skills` 없이 부르면 knob에 오른 후보와 지금의 on/off를 보여 주고, hitl(`skill-selection`)을 남긴 채 `selection-required`(종료 코드 1)로 멈춘다. 캠페인은 아직 열리지 않는다.
+2. 그 후보를 사용자에게 보이고 답을 받는다. 사람의 답을 대신 정하지 않는다.
+3. 답을 `--skills <a,b>`로, 아무것도 켜지 않는다는 답은 `--skills none`으로 주어 `open`을 다시 부른다. 실행기가 hitl에 답을 기록하고, 고른 스킬 중 꺼져 있던 것만 켜서 인스턴스의 `activation.json`에 적는다. 이미 켜져 있던 스킬은 `pre_existing`으로 적고 닫을 때도 그대로 둔다.
+4. 링크 동기화나 그 뒤의 open 처리가 실패하면 켠 것을 되돌린다. 다른 캠페인의 기록이 열려 있으면 거절하고 그 캠페인을 닫는 방법을 알려 준다.
+
+켜진 스킬은 하네스의 새 세션부터 발견된다. MCP 서버가 필요한 스킬은 `open`이 출력한 등록 명령을 사용자에게 전한다. 등록은 사용자가 한다.
 
 ## 단계를 맡기는 법
 
