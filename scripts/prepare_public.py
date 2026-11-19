@@ -23,8 +23,8 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 WORKER_CONFIG = "skills/worker-agent-control/config.json"
 SKILLS = {
-    "code-review", "deepeval-pack", "harness2", "pr-review-toolkit", "progress-monitor",
-    "rust-repack", "skillevaluator", "wiki-desk", "worker-agent-control",
+    "anti-code-slop", "code-review", "deepeval-pack", "harness2", "pr-review-toolkit",
+    "progress-monitor", "rust-repack", "skillevaluator", "wiki-desk", "worker-agent-control",
 }
 RULES = {"workflow.md", "docs.md", "harness.md"}
 ADAPTER_DIRS = (".agents/skills", ".claude/skills")
@@ -84,8 +84,8 @@ def allowed(path: str) -> bool:
         return len(p.parts) > 2 and p.parts[1] == "_template" and p.suffix in {".json", ".jsonl", ".md"}
     if len(p.parts) > 2 and p.parts[0] == "skills":
         return p.parts[1] in SKILLS and (
-            p.suffix in {".md", ".mjs", ".ts", ".py", ".json", ".yaml", ".yml", ".toml"}
-            or p.name in {"LICENSE", ".gitignore", ".gitattributes", "uv.lock"}
+            p.suffix in {".md", ".mjs", ".ts", ".py", ".json", ".yaml", ".yml", ".toml", ".rs", ".sh", ".js"}
+            or p.name in {"LICENSE", ".gitignore", ".gitattributes", "uv.lock", "Cargo.lock"}
         )
     return False
 

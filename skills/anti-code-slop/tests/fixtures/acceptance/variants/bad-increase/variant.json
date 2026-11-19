@@ -1,0 +1,12 @@
+{
+  "base": "good",
+  "expect": "INCOMPLETE",
+  "fail": [
+    "V4"
+  ],
+  "fix_types": [
+    "lint-suppression",
+    "commented-code",
+    "swallowed-error"
+  ]
+}

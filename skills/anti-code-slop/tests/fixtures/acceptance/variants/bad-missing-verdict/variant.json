@@ -1,0 +1,14 @@
+{
+  "base": "good",
+  "expect": "INCOMPLETE",
+  "fail": [
+    "V5"
+  ],
+  "report_ops": [
+    {
+      "file": "python/app/ledger.py",
+      "op": "drop_verdict",
+      "rule": "ANY-SLEEP-CALL"
+    }
+  ]
+}

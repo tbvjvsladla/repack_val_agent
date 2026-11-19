@@ -1,0 +1,950 @@
+{
+  "version": 1,
+  "grades": {
+    "confirmed": "The detector is almost never wrong about what it found. Blocks COMPLETE when the fix type is designated and no justified disposition exists.",
+    "heuristic": "May or may not be slop. Needs a reviewer verdict; the verdict content does not block."
+  },
+  "disposition_exceptions": {
+    "lint-suppression": [
+      "allowed_suppression",
+      "external_constraint"
+    ],
+    "swallowed-error": [
+      "external_constraint"
+    ],
+    "commented-code": [],
+    "banner-comment": []
+  },
+  "rules": [
+    {
+      "id": "RS-LINT-SUPPRESSION",
+      "languages": [
+        "rust"
+      ],
+      "grade": "confirmed",
+      "fix_type": "lint-suppression",
+      "where": "code",
+      "pattern": "#\\s*!?\\s*\\[\\s*(allow|expect)\\s*\\(|#\\s*!?\\s*\\[\\s*cfg_attr\\s*\\(.*\\b(allow|expect)\\s*\\(",
+      "manual_ref": "2.3 억제 주석 복사; 5.4; 5.6 린트·타입 억제",
+      "positive": [
+        {
+          "lang": "rust",
+          "code": "#[allow(dead_code)]\nfn unused() {}\n",
+          "count": 1
+        },
+        {
+          "lang": "rust",
+          "code": "#![allow(clippy::all)]\n",
+          "count": 1
+        },
+        {
+          "lang": "rust",
+          "code": "#[cfg_attr(test, allow(unused))]\nfn f() {}\n",
+          "count": 1
+        },
+        {
+          "lang": "rust",
+          "code": "#[expect(unused_variables)]\nlet x = 1;\n",
+          "count": 1
+        },
+        {
+          "lang": "rust",
+          "code": "# [allow(dead_code)]\nfn f() {}\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "rust",
+          "code": "let s = \"#[allow(dead_code)]\";\n"
+        },
+        {
+          "lang": "rust",
+          "code": "// #[allow(dead_code)] is discussed here\nfn f() {}\n"
+        },
+        {
+          "lang": "rust",
+          "code": "#[deny(warnings)]\nfn f() {}\n"
+        }
+      ]
+    },
+    {
+      "id": "PY-LINT-SUPPRESSION",
+      "languages": [
+        "python"
+      ],
+      "grade": "confirmed",
+      "fix_type": "lint-suppression",
+      "where": "comment",
+      "pattern": "(?i:\\btype:\\s*ignore\\b|\\bnoqa\\b|\\bpylint:\\s*disable\\b|\\bpyright:\\s*ignore\\b|\\bmypy:\\s*ignore-errors\\b)",
+      "manual_ref": "2.3 억제 주석 복사; 5.4",
+      "positive": [
+        {
+          "lang": "python",
+          "code": "import os  # noqa: F401\n",
+          "count": 1
+        },
+        {
+          "lang": "python",
+          "code": "x = f()  # type: ignore[arg-type]\n",
+          "count": 1
+        },
+        {
+          "lang": "python",
+          "code": "# pylint: disable=broad-except\n",
+          "count": 1
+        },
+        {
+          "lang": "python",
+          "code": "y = g()  # NOQA\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "python",
+          "code": "MARKER = \"# noqa is text here\"\n"
+        },
+        {
+          "lang": "python",
+          "code": "def f():\n    \"\"\"Do not use type: ignore here.\"\"\"\n"
+        }
+      ]
+    },
+    {
+      "id": "JS-LINT-SUPPRESSION",
+      "languages": [
+        "js"
+      ],
+      "grade": "confirmed",
+      "fix_type": "lint-suppression",
+      "where": "comment",
+      "pattern": "@ts-ignore\\b|@ts-nocheck\\b|@ts-expect-error\\b|\\beslint-disable(-next-line|-line)?\\b|\\bbiome-ignore\\b",
+      "manual_ref": "2.3 억제 주석 복사; 5.4",
+      "positive": [
+        {
+          "lang": "js",
+          "code": "// eslint-disable-next-line no-unused-vars\nconst a = 1;\n",
+          "count": 1
+        },
+        {
+          "lang": "js",
+          "code": "/* eslint-disable */\n",
+          "count": 1
+        },
+        {
+          "lang": "js",
+          "code": "// @ts-ignore\nconst b: number = \"x\";\n",
+          "count": 1
+        },
+        {
+          "lang": "js",
+          "code": "const c = d; // @ts-expect-error\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "js",
+          "code": "const s = \"// @ts-ignore\";\n"
+        },
+        {
+          "lang": "js",
+          "code": "// prettier-ignore\nconst grid = [1, 0];\n"
+        },
+        {
+          "lang": "js",
+          "code": "const re = /\\/\\/ eslint-disable/;\n"
+        }
+      ]
+    },
+    {
+      "id": "SH-LINT-SUPPRESSION",
+      "languages": [
+        "shell"
+      ],
+      "grade": "confirmed",
+      "fix_type": "lint-suppression",
+      "where": "comment",
+      "pattern": "\\bshellcheck\\s+disable=",
+      "manual_ref": "2.3 억제 주석 복사; 5.4",
+      "positive": [
+        {
+          "lang": "shell",
+          "code": "# shellcheck disable=SC2086\nrm $f\n",
+          "count": 1
+        },
+        {
+          "lang": "shell",
+          "code": "echo hi # shellcheck disable=SC2005\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "shell",
+          "code": "echo \"# shellcheck disable=SC2086\"\n"
+        },
+        {
+          "lang": "shell",
+          "code": "echo '# shellcheck disable=SC2086'\n"
+        }
+      ]
+    },
+    {
+      "id": "PY-COMMENTED-CODE",
+      "languages": [
+        "python"
+      ],
+      "grade": "confirmed",
+      "fix_type": "commented-code",
+      "where": "comment",
+      "builtin": "py_commented_code",
+      "manual_ref": "5.6 주석 처리된 코드 → 삭제",
+      "positive": [
+        {
+          "lang": "python",
+          "code": "# result = 0\n# for x in items:\n#     result += x\nreturn_value = 1\n",
+          "count": 1
+        },
+        {
+          "lang": "python",
+          "code": "def f():\n    # old = compute(a)\n    # return old * 2\n    return 3\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "python",
+          "code": "# Returns: value\n# Raises: ValueError\nx = 1\n"
+        },
+        {
+          "lang": "python",
+          "code": "# Default: 10\n# Units: seconds\nx = 1\n"
+        },
+        {
+          "lang": "python",
+          "code": "# This explains why we\n# read the file twice.\nx = 1\n"
+        },
+        {
+          "lang": "python",
+          "code": "x = compute()  # see below\n"
+        },
+        {
+          "lang": "python",
+          "code": "# one_line_call(x)\ny = 2\n"
+        },
+        {
+          "lang": "python",
+          "code": "# not now\n# not yet\nx = 1\n"
+        },
+        {
+          "lang": "python",
+          "code": "# a, b\n# c, d\nx = 1\n"
+        }
+      ]
+    },
+    {
+      "id": "RS-COMMENTED-CODE",
+      "languages": [
+        "rust"
+      ],
+      "grade": "confirmed",
+      "fix_type": "commented-code",
+      "where": "comment",
+      "builtin": "clike_commented_code",
+      "manual_ref": "5.6 주석 처리된 코드 → 삭제",
+      "positive": [
+        {
+          "lang": "rust",
+          "code": "fn f() -> i64 {\n    // let mut sum = 0;\n    // for e in entries { sum += e; }\n    0\n}\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "rust",
+          "code": "/// let total = ledger::total(&[1]);\n/// assert_eq!(total, 1);\npub fn total() {}\n"
+        },
+        {
+          "lang": "rust",
+          "code": "// Keep the sum in cents;\n// rounding happens later.\nfn f() {}\n"
+        },
+        {
+          "lang": "rust",
+          "code": "// let x = 1;\nfn f() {}\n"
+        }
+      ]
+    },
+    {
+      "id": "JS-COMMENTED-CODE",
+      "languages": [
+        "js"
+      ],
+      "grade": "confirmed",
+      "fix_type": "commented-code",
+      "where": "comment",
+      "builtin": "clike_commented_code",
+      "manual_ref": "5.6 주석 처리된 코드 → 삭제",
+      "positive": [
+        {
+          "lang": "js",
+          "code": "// const legacy = await task();\n// return legacy;\nexport const x = 1;\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "js",
+          "code": "/**\n * const example = run();\n * return example;\n */\nexport function run() {}\n"
+        },
+        {
+          "lang": "js",
+          "code": "// Retry until the task resolves;\n// the caller sets the limit.\nexport const y = 2;\n"
+        },
+        {
+          "lang": "js",
+          "code": "const url = \"http://example.com\"; // note;\nconst z = 1;\n"
+        }
+      ]
+    },
+    {
+      "id": "PY-BROAD-EXCEPTION-SWALLOW",
+      "languages": [
+        "python"
+      ],
+      "grade": "confirmed",
+      "fix_type": "swallowed-error",
+      "where": "code",
+      "builtin": "py_broad_swallow",
+      "manual_ref": "2.3 증상 가드; 3.2 예외 무시",
+      "positive": [
+        {
+          "lang": "python",
+          "code": "try:\n    run()\nexcept Exception:\n    pass\n",
+          "count": 1
+        },
+        {
+          "lang": "python",
+          "code": "try:\n    run()\nexcept:\n    ...\n",
+          "count": 1
+        },
+        {
+          "lang": "python",
+          "code": "try:\n    run()\nexcept (ValueError, Exception):\n    None\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "python",
+          "code": "try:\n    run()\nexcept FileNotFoundError:\n    pass\n"
+        },
+        {
+          "lang": "python",
+          "code": "try:\n    run()\nexcept Exception as error:\n    raise RuntimeError('x') from error\n"
+        },
+        {
+          "lang": "python",
+          "code": "for x in xs:\n    try:\n        run(x)\n    except Exception:\n        continue\n"
+        }
+      ]
+    },
+    {
+      "id": "ANY-BANNER-COMMENT",
+      "languages": [
+        "rust",
+        "python",
+        "js",
+        "shell"
+      ],
+      "grade": "confirmed",
+      "fix_type": "banner-comment",
+      "where": "comment",
+      "builtin": "banner",
+      "manual_ref": "5.6 배너 → 삭제",
+      "positive": [
+        {
+          "lang": "rust",
+          "code": "// ==================== totals ====================\nfn f() {}\n",
+          "count": 1
+        },
+        {
+          "lang": "python",
+          "code": "# ----------------------------------------\nx = 1\n",
+          "count": 1
+        },
+        {
+          "lang": "python",
+          "code": "##########\nx = 1\n",
+          "count": 1
+        },
+        {
+          "lang": "js",
+          "code": "// ---------------------------------------------------------------\nexport const a = 1;\n",
+          "count": 1
+        },
+        {
+          "lang": "shell",
+          "code": "# ############################################\necho hi\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "shell",
+          "code": "#!/usr/bin/env bash\necho hi\n"
+        },
+        {
+          "lang": "python",
+          "code": "# --- short ---\nx = 1\n"
+        },
+        {
+          "lang": "python",
+          "code": "s = \"==========\"\n"
+        },
+        {
+          "lang": "python",
+          "code": "##########################\n# Copyright 2026 Example\n##########################\nx = 1\n"
+        },
+        {
+          "lang": "rust",
+          "code": "/// |------------|------|\n/// | a          | b    |\npub fn f() {}\n"
+        },
+        {
+          "lang": "python",
+          "code": "# +------------+\n# | cell       |\n# +------------+\nx = 1\n"
+        }
+      ]
+    },
+    {
+      "id": "PY-IGNORED-EXCEPTION",
+      "languages": [
+        "python"
+      ],
+      "grade": "heuristic",
+      "fix_type": "swallowed-error",
+      "where": "code",
+      "builtin": "py_ignored_exception",
+      "manual_ref": "2.3 증상 가드",
+      "positive": [
+        {
+          "lang": "python",
+          "code": "try:\n    os.remove(p)\nexcept FileNotFoundError:\n    pass\n",
+          "count": 1
+        },
+        {
+          "lang": "python",
+          "code": "for x in xs:\n    try:\n        run(x)\n    except Exception:\n        continue\n",
+          "count": 1
+        },
+        {
+          "lang": "python",
+          "code": "try:\n    run()\nexcept Exception:\n    return None\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "python",
+          "code": "try:\n    run()\nexcept Exception:\n    pass\n"
+        },
+        {
+          "lang": "python",
+          "code": "try:\n    run()\nexcept ValueError:\n    return None\n"
+        }
+      ]
+    },
+    {
+      "id": "PY-SUPPRESS-CONTEXT",
+      "languages": [
+        "python"
+      ],
+      "grade": "heuristic",
+      "fix_type": "swallowed-error",
+      "where": "code",
+      "pattern": "\\bcontextlib\\.suppress\\s*\\(|\\bsuppress\\s*\\(\\s*(Exception|BaseException)\\b",
+      "manual_ref": "2.3 증상 가드",
+      "positive": [
+        {
+          "lang": "python",
+          "code": "with contextlib.suppress(OSError):\n    os.remove(p)\n",
+          "count": 1
+        },
+        {
+          "lang": "python",
+          "code": "with suppress(Exception):\n    run()\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "python",
+          "code": "def suppress_noise(): pass\n"
+        },
+        {
+          "lang": "python",
+          "code": "s = \"contextlib.suppress(x)\"\n"
+        }
+      ]
+    },
+    {
+      "id": "JS-EMPTY-CATCH",
+      "languages": [
+        "js"
+      ],
+      "grade": "heuristic",
+      "fix_type": "swallowed-error",
+      "where": "code",
+      "builtin": "js_empty_catch",
+      "manual_ref": "2.3 증상 가드",
+      "positive": [
+        {
+          "lang": "js",
+          "code": "try {\n  run();\n} catch (error) {\n}\n",
+          "count": 1
+        },
+        {
+          "lang": "js",
+          "code": "try { run(); } catch { /* ignore */ }\n",
+          "count": 1
+        },
+        {
+          "lang": "js",
+          "code": "promise.catch(() => {});\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "js",
+          "code": "try {\n  run();\n} catch (error) {\n  log(error);\n}\n"
+        },
+        {
+          "lang": "js",
+          "code": "const s = \"catch (e) {}\";\n"
+        }
+      ]
+    },
+    {
+      "id": "SH-ERROR-SILENCED",
+      "languages": [
+        "shell"
+      ],
+      "grade": "heuristic",
+      "fix_type": "swallowed-error",
+      "where": "code",
+      "pattern": "\\|\\|\\s*(true|:)\\s*($|[;&#)])",
+      "manual_ref": "2.3 증상 가드",
+      "positive": [
+        {
+          "lang": "shell",
+          "code": "rm -r \"$d\" 2>/dev/null || true\n",
+          "count": 1
+        },
+        {
+          "lang": "shell",
+          "code": "grep x f || :\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "shell",
+          "code": "echo \"a || true\"\n"
+        },
+        {
+          "lang": "shell",
+          "code": "test -f x || exit 1\n"
+        }
+      ]
+    },
+    {
+      "id": "RS-DISCARDED-RESULT",
+      "languages": [
+        "rust"
+      ],
+      "grade": "heuristic",
+      "fix_type": "swallowed-error",
+      "where": "code",
+      "pattern": "\\blet\\s+_\\s*=|\\bErr\\s*\\(\\s*_\\s*\\)\\s*=>\\s*(\\{\\s*\\}|\\(\\s*\\))",
+      "manual_ref": "2.3 증상 가드",
+      "positive": [
+        {
+          "lang": "rust",
+          "code": "let _ = std::fs::remove_file(p);\n",
+          "count": 1
+        },
+        {
+          "lang": "rust",
+          "code": "match r { Ok(v) => v, Err(_) => {} }\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "rust",
+          "code": "let _guard = lock.lock();\n"
+        },
+        {
+          "lang": "rust",
+          "code": "let s = \"let _ = x;\";\n"
+        }
+      ]
+    },
+    {
+      "id": "ANY-EXCUSE-MARKER",
+      "languages": [
+        "rust",
+        "python",
+        "js",
+        "shell"
+      ],
+      "grade": "heuristic",
+      "fix_type": "excuse-comment",
+      "where": "comment",
+      "pattern": "(?i:\\bfor now\\b|\\btemporar(y|ily)\\b|\\bhack(y|ish)?\\b|\\bworkaround\\b|\\bshould be (fine|safe)\\b)|\\b(TODO|FIXME|XXX)\\b|임시",
+      "manual_ref": "2.3 변명형 주석; 5.6 임시방편 정당화",
+      "positive": [
+        {
+          "lang": "python",
+          "code": "# sleeping should be fine for now\ntime.sleep(1)\n",
+          "count": 1
+        },
+        {
+          "lang": "rust",
+          "code": "// TODO: remove\nfn f() {}\n",
+          "count": 1
+        },
+        {
+          "lang": "js",
+          "code": "// 임시 처리\nconst a = 1;\n",
+          "count": 1
+        },
+        {
+          "lang": "shell",
+          "code": "# workaround for slow disk\nsync\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "python",
+          "code": "TODO = \"for now\"\n"
+        },
+        {
+          "lang": "rust",
+          "code": "// Converts cents to dollars.\nfn f() {}\n"
+        }
+      ]
+    },
+    {
+      "id": "ANY-CONSTRAINT-MARKER",
+      "languages": [
+        "rust",
+        "python",
+        "js",
+        "shell"
+      ],
+      "grade": "heuristic",
+      "fix_type": "constraint-comment",
+      "where": "comment",
+      "pattern": "(?i:\\bdo\\s+not\\s+(remove|change|touch|modify|delete|edit)\\b|\\bdon'?t\\s+(remove|change|touch|modify|delete|edit)\\b|\\btalk\\s+to\\s+\\S+.*\\bbefore\\b)|\\bIMPORTANT\\b|건드리지\\s*말",
+      "manual_ref": "5.6 제약 주장; 5.7",
+      "positive": [
+        {
+          "lang": "rust",
+          "code": "// IMPORTANT: do not change the field order.\npub struct Row {}\n",
+          "count": 1
+        },
+        {
+          "lang": "python",
+          "code": "# talk to billing before changing this\nx = 1\n",
+          "count": 1
+        },
+        {
+          "lang": "js",
+          "code": "// 건드리지 말 것\nconst a = 1;\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "rust",
+          "code": "// The important part is the total.\nfn f() {}\n"
+        },
+        {
+          "lang": "python",
+          "code": "MSG = \"do not remove\"\n"
+        }
+      ]
+    },
+    {
+      "id": "ANY-SLEEP-CALL",
+      "languages": [
+        "rust",
+        "python",
+        "js",
+        "shell"
+      ],
+      "grade": "heuristic",
+      "fix_type": "timer-workaround",
+      "where": "code",
+      "patterns": {
+        "python": "\\b(time|asyncio)\\.sleep\\s*\\(",
+        "js": "\\bsetTimeout\\s*\\(",
+        "rust": "\\bthread::sleep\\s*\\(|\\btokio::time::sleep\\s*\\(",
+        "shell": "(^|[;&|]\\s*|\\s)sleep\\s+[0-9]"
+      },
+      "manual_ref": "2.3 시간 지연 우회",
+      "positive": [
+        {
+          "lang": "python",
+          "code": "time.sleep(0.1)\n",
+          "count": 1
+        },
+        {
+          "lang": "js",
+          "code": "await new Promise((r) => setTimeout(r, 10));\n",
+          "count": 1
+        },
+        {
+          "lang": "rust",
+          "code": "std::thread::sleep(d);\n",
+          "count": 1
+        },
+        {
+          "lang": "shell",
+          "code": "sleep 2\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "python",
+          "code": "def sleep_cycle(): pass\n"
+        },
+        {
+          "lang": "shell",
+          "code": "echo \"sleep 2\"\n"
+        }
+      ]
+    },
+    {
+      "id": "PROSE-U7-AI-VOCAB",
+      "languages": [
+        "prose"
+      ],
+      "grade": "heuristic",
+      "fix_type": "prose",
+      "where": "prose",
+      "pattern": "(?i)\\b(additionally|crucial(ly)?|delv(e|es|ed|ing)|enhanc(e|es|ed|ing)|foster(s|ed|ing)?|landscapes?|pivotal|showcas(e|es|ed|ing)|testament|underscor(e|es|ed|ing)|vibrant)\\b",
+      "manual_ref": "12.3 unslop 7",
+      "positive": [
+        {
+          "lang": "prose",
+          "code": "It delves into every account.\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "prose",
+          "code": "It reads every account.\n```\ndelve()\n```\n"
+        }
+      ]
+    },
+    {
+      "id": "PROSE-U13-DASH",
+      "languages": [
+        "prose"
+      ],
+      "grade": "heuristic",
+      "fix_type": "prose",
+      "where": "prose",
+      "pattern": "[\\u2014\\u2013]",
+      "manual_ref": "12.3 unslop 13",
+      "positive": [
+        {
+          "lang": "prose",
+          "code": "Export runs nightly — always.\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "prose",
+          "code": "Export runs nightly. Always.\n"
+        }
+      ]
+    },
+    {
+      "id": "PROSE-U16-BOLD-ECHO",
+      "languages": [
+        "prose"
+      ],
+      "grade": "heuristic",
+      "fix_type": "prose",
+      "where": "prose",
+      "builtin": "prose_bold_echo",
+      "manual_ref": "12.3 unslop 16",
+      "positive": [
+        {
+          "lang": "prose",
+          "code": "**Export:** Export runs nightly.\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "prose",
+          "code": "**Export.** It runs at 02:00 and writes one file.\n"
+        }
+      ]
+    },
+    {
+      "id": "PROSE-U18-EMOJI",
+      "languages": [
+        "prose"
+      ],
+      "grade": "heuristic",
+      "fix_type": "prose",
+      "where": "prose",
+      "builtin": "prose_emoji",
+      "manual_ref": "12.3 unslop 18",
+      "positive": [
+        {
+          "lang": "prose",
+          "code": "# 🚀 Export guide\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "prose",
+          "code": "# Export guide\nThe arrow → is not an emoji.\n"
+        }
+      ]
+    },
+    {
+      "id": "PROSE-U19-CURLY-QUOTE",
+      "languages": [
+        "prose"
+      ],
+      "grade": "heuristic",
+      "fix_type": "prose",
+      "where": "prose",
+      "pattern": "[\\u201c\\u201d\\u2018\\u2019]",
+      "manual_ref": "12.3 unslop 19",
+      "positive": [
+        {
+          "lang": "prose",
+          "code": "Call it “done”.\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "prose",
+          "code": "Call it \"done\".\n"
+        }
+      ]
+    },
+    {
+      "id": "PROSE-U20-CHATBOT",
+      "languages": [
+        "prose"
+      ],
+      "grade": "heuristic",
+      "fix_type": "prose",
+      "where": "prose",
+      "pattern": "(?i)\\bI hope this helps\\b|\\blet me know if\\b",
+      "manual_ref": "12.3 unslop 20",
+      "positive": [
+        {
+          "lang": "prose",
+          "code": "I hope this helps! Let me know if anything is unclear.\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "prose",
+          "code": "Open an issue when a total is wrong.\n"
+        }
+      ]
+    },
+    {
+      "id": "PROSE-U22-OPENER",
+      "languages": [
+        "prose"
+      ],
+      "grade": "heuristic",
+      "fix_type": "prose",
+      "where": "prose",
+      "pattern": "(?i)^\\s*(?:[-*+]\\s+)?(?:great question|certainly!|absolutely!)",
+      "manual_ref": "12.3 unslop 22",
+      "positive": [
+        {
+          "lang": "prose",
+          "code": "Great question! The export runs nightly.\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "prose",
+          "code": "The export certainly runs nightly.\n"
+        }
+      ]
+    },
+    {
+      "id": "PROSE-U23-FILLER",
+      "languages": [
+        "prose"
+      ],
+      "grade": "heuristic",
+      "fix_type": "prose",
+      "where": "prose",
+      "pattern": "(?i)\\bin order to\\b|\\bit is important to note that\\b",
+      "manual_ref": "12.3 unslop 23",
+      "positive": [
+        {
+          "lang": "prose",
+          "code": "Run it in order to export.\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "prose",
+          "code": "Run it to export.\n"
+        }
+      ]
+    },
+    {
+      "id": "PROSE-U31-PLAIN-WORD",
+      "languages": [
+        "prose"
+      ],
+      "grade": "heuristic",
+      "fix_type": "prose",
+      "where": "prose",
+      "pattern": "(?i)\\b(utiliz(e|es|ed|ing)|leverag(e|es|ed|ing))\\b",
+      "manual_ref": "12.3 unslop 31",
+      "positive": [
+        {
+          "lang": "prose",
+          "code": "Leverage the ledger.\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "prose",
+          "code": "Use the ledger.\n"
+        }
+      ]
+    }
+  ]
+}

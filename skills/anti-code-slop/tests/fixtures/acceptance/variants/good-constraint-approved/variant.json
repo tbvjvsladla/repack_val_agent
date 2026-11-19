@@ -1,0 +1,20 @@
+{
+  "base": "good",
+  "expect": "COMPLETE",
+  "fail": [],
+  "report_ops": [
+    {
+      "op": "set_open_constraints",
+      "value": [
+        {
+          "file": "rust/src/lib.rs",
+          "status": "accepted_unenforced",
+          "text": "IMPORTANT: do not change the field order; the nightly export reads columns by position."
+        }
+      ]
+    }
+  ],
+  "snapshot_extra": [
+    "--allow-constraint-deletion"
+  ]
+}

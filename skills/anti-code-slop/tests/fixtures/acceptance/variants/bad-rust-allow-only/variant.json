@@ -1,0 +1,8 @@
+{
+  "base": "good",
+  "expect": "INCOMPLETE",
+  "fail": [
+    "V7"
+  ],
+  "requires": "cargo"
+}

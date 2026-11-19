@@ -1,0 +1,49 @@
+{
+  "executor": "fixture: good variant",
+  "reviewers": [
+    {
+      "role": "comment",
+      "independent": true
+    },
+    {
+      "role": "structure",
+      "independent": true
+    },
+    {
+      "role": "prose",
+      "independent": true
+    },
+    {
+      "role": "diff",
+      "independent": true
+    }
+  ],
+  "verdicts": "@ALL_HEURISTIC_GROUPS",
+  "dispositions": [
+    {
+      "signal": "@RS-LINT-SUPPRESSION|rust/src/proto.rs|non_snake_case|0",
+      "status": "justified_keep",
+      "exception": "allowed_suppression",
+      "evidence": "Field names mirror the upstream wire format; rust/tests/wire.rs fixes them.",
+      "proposed_by": "comment",
+      "accepted_by": "main"
+    },
+    {
+      "signal": "@RS-LINT-SUPPRESSION|rust/src/proto.rs|non_snake_case|1",
+      "status": "justified_keep",
+      "exception": "allowed_suppression",
+      "evidence": "Field names mirror the upstream wire format; rust/tests/wire.rs fixes them.",
+      "proposed_by": "comment",
+      "accepted_by": "main"
+    }
+  ],
+  "proposals": [],
+  "open_constraints": [
+    {
+      "file": "rust/src/lib.rs",
+      "text": "IMPORTANT: do not change the field order; the nightly export reads columns by position.",
+      "status": "blocked"
+    }
+  ],
+  "findings": []
+}

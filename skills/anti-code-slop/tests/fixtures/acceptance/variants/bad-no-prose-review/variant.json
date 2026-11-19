@@ -1,0 +1,15 @@
+{
+  "base": "good",
+  "expect": "INCOMPLETE",
+  "fail": [
+    "V6"
+  ],
+  "report_ops": [
+    {
+      "op": "drop_reviews",
+      "roles": [
+        "prose"
+      ]
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 
 | 구분 | 처리 |
 |---|---|
-| AGENTS.md·CLAUDE.md, 세 헌장(rules/), 아홉 스킬(skills/)과 내부 테스트, 하네스 어댑터 링크·`.claude/settings.json` | 공개. 기존 라이선스·출처 보존 |
+| AGENTS.md·CLAUDE.md, 세 헌장(rules/), 열 스킬(skills/)과 내부 테스트, 하네스 어댑터 링크·`.claude/settings.json` | 공개. 기존 라이선스·출처 보존 |
 | docs의 역할별 doc_gen_guide.md | 문서의 용도·작성 방식·예시만 공개 |
 | docs에 생성된 과업 문서 | 로컬 보존, Git 추적·공개본 제외 |
 | campaigns의 README.md와 _template, scripts/check_campaign.py | 캠페인의 규약·틀·형식 검사를 공개. 운영 규칙과 실행기는 skills/progress-monitor에 있음 |

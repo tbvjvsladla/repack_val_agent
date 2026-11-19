@@ -1,0 +1,17 @@
+{
+  "base": "good",
+  "expect": "INCOMPLETE",
+  "fail": [
+    "V3"
+  ],
+  "report_ops": [
+    {
+      "index": 0,
+      "op": "patch_disposition",
+      "value": {
+        "reason": "needs owner decision",
+        "status": "blocked"
+      }
+    }
+  ]
+}

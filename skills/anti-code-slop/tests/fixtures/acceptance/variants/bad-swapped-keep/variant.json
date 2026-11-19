@@ -1,0 +1,15 @@
+{
+  "base": "good",
+  "expect": "INCOMPLETE",
+  "fail": [
+    "V3"
+  ],
+  "report_ops": [
+    {
+      "index": [
+        1
+      ],
+      "op": "keep_dispositions"
+    }
+  ]
+}

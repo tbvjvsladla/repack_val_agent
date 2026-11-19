@@ -1,0 +1,22 @@
+{
+  "base": "good",
+  "expect": "INCOMPLETE",
+  "fail": [
+    "V8"
+  ],
+  "report_ops": [
+    {
+      "op": "add_dispositions",
+      "value": [
+        {
+          "accepted_by": "main",
+          "evidence": "kept for reference",
+          "exception": "external_constraint",
+          "proposed_by": "comment",
+          "signal": "@RS-COMMENTED-CODE|rust/src/lib.rs|let mut sum|0",
+          "status": "justified_keep"
+        }
+      ]
+    }
+  ]
+}

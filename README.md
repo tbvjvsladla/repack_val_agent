@@ -40,7 +40,7 @@ repack_val_agent는 코드베이스·스킬·MCP·플러그인 등의 **개선�
 | 구분 | 도구 | 책임 |
 |---|---|---|
 | **개선 방향** | [harness2](skills/harness2/SKILL.md) | 무엇을 바꿔 볼지 제안하고, 후보의 탐색·대조·조합·선택·회고를 근거와 연결합니다. |
-| **선택 가능한 수단** | `code-review` · `rust-repack` · `pr-review-toolkit` · `deepeval-pack` · `skillevaluator` 등 | 이번 개선에 필요한 변환·검토·평가를 각자의 책임 범위에서 수행합니다. |
+| **선택 가능한 수단** | `code-review` · `rust-repack` · `pr-review-toolkit` · `anti-code-slop` · `deepeval-pack` · `skillevaluator` 등 | 이번 개선에 필요한 변환·검토·평가를 각자의 책임 범위에서 수행합니다. |
 | **기반: 실행·운영 제어** | [worker-agent-control](skills/worker-agent-control/SKILL.md) | 대상 워커를 연결하고, 요청·실행·결과 인수를 다룹니다. |
 | **기반: 실행·운영 제어** | [progress-monitor](skills/progress-monitor/SKILL.md) | 오래 걸리는 과업에서 검증 묶음의 gate와 영수증, 단계 위임, 정체 감시, 방향 조정을 다룹니다. |
 | **기반: 문서 근거** | [wiki-desk](skills/wiki-desk/SKILL.md) | 프로젝트 문서의 원문 근거를 찾고, 새 기록을 포인터 위키에 입고합니다. |
@@ -54,6 +54,7 @@ repack_val_agent는 코드베이스·스킬·MCP·플러그인 등의 **개선�
 | [code-review](skills/code-review/SKILL.md) | PR이나 로컬 변경의 신규 결함을 찾을 때 | 근거를 재검증해 엄선한 결함·규칙 위반 |
 | [rust-repack](skills/rust-repack/SKILL.md) | 다른 언어의 로직 또는 기존 Rust를 개선할 때 | 외부 동작을 보존하는 Rust 변환·리팩토링과 자체검사 |
 | [pr-review-toolkit](skills/pr-review-toolkit/SKILL.md) | 테스트·주석·오류 처리·타입·품질 등 여러 관점을 검토할 때 | 선택한 관점의 검토 결과 |
+| [anti-code-slop](skills/anti-code-slop/SKILL.md) | AI가 남긴 억제 주석·주석 처리 코드·예외 삼킴·변명 주석 등을 감사하거나, 허용 경로와 수정 유형을 정해 고칠 때 | 스크립트가 판정한 `COMPLETE`/`INCOMPLETE`, 고친 것·정당한 보존·제안·강제되지 않은 제약 |
 | [deepeval-pack](skills/deepeval-pack/SKILL.md) | 답변·검색 문맥·기대 답변을 평가할 때 | 설정한 Judge·메트릭에 따른 케이스별 점수·이유·오류 |
 | [skillevaluator](skills/skillevaluator/SKILL.md) | 스킬의 형식·안전·품질을 점검하거나, 스킬이 있을 때와 없을 때의 에이전트 결과를 비교할 때 | 단계(Tier)별 점수·판정·발견 사항과 실행하지 않은 범위 |
 

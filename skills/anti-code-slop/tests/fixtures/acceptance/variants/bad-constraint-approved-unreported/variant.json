@@ -1,0 +1,16 @@
+{
+  "base": "good",
+  "expect": "INCOMPLETE",
+  "fail": [
+    "V2"
+  ],
+  "report_ops": [
+    {
+      "op": "set_open_constraints",
+      "value": []
+    }
+  ],
+  "snapshot_extra": [
+    "--allow-constraint-deletion"
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "base": "good",
+  "expect": "INCOMPLETE",
+  "fail": [
+    "V3"
+  ],
+  "report_ops": [
+    {
+      "op": "add_dispositions",
+      "value": [
+        {
+          "accepted_by": "main",
+          "evidence": "Line-length lint is style-only for the fixed-width rows.",
+          "exception": "allowed_suppression",
+          "proposed_by": "comment",
+          "signal": "@PY-LINT-SUPPRESSION|python/app/padding.py|noqa|0",
+          "status": "justified_keep"
+        },
+        {
+          "accepted_by": "main",
+          "evidence": "Line-length lint is style-only for the fixed-width rows.",
+          "exception": "allowed_suppression",
+          "proposed_by": "comment",
+          "signal": "@PY-LINT-SUPPRESSION|python/app/padding.py|noqa|1",
+          "status": "justified_keep"
+        }
+      ]
+    }
+  ]
+}
