@@ -10,6 +10,7 @@
 | pstack 원칙 문서(`fix-root-causes`, `boundary-discipline`, `subtract-before-you-add`, `minimize-reader-load`, `prove-it-works`, `test-behavior-not-implementation`, `type-system-discipline`) | MIT | 판단 기준 | 원문을 싣지 않고 구조 검토자의 판정 질문 S1~S6과 수정 우선순위로 추렸다 |
 | pstack `correct`, `migrate-callers-then-delete-legacy-apis`, `outcome-oriented-execution` | MIT | 문제 유형 | 수정 지시로 쓰지 않는다. 해당 문제는 제안으로만 보고한다 |
 | 기준 매뉴얼 `h_report_26111907_AI코드슬롭_방지_에이전트_작업지시_매뉴얼.md`(사용자 제공 내부 문서) | 저장소 내부 자료 | 슬롭 신호 8종, 주석 판정 트리, 5.7 보수적 적용안, 감사 보고서 항목, 인코딩 제안의 네 칸 | 규칙표의 `manual_ref`와 판정 항목으로 연결했다 |
+| 사용자 지시(2026-11-22): 무결성·일치 검증 | 저장소 내부 결정 | 해시로 파일 정합성을 확인하는 것을 슬롭으로 보는 판단, git → 직접 비교 → 최후의 해시라는 순서 | 외부 출처가 없다. pstack `no-comments`가 주석을 기본으로 지우고 좁은 예외만 남기는 태도를 해시에 옮겼다. 규칙 `ANY-HASH-INTEGRITY`(확정)·`PROSE-HASH-RECORD`(휴리스틱)와 예외 셋을 새로 만들었다 |
 
 ## 참고만 한 것(옮긴 코드나 문장 없음)
 

@@ -8,7 +8,7 @@
 
 ## 스킬 설치(코드)
 1. 조정본의 폴더 전체를 `skills/wiki-desk/`에 설치하고(`.git` 제외) 하네스별 발견 경로에 심볼릭 링크를 둔다. 기존 동명 스킬이 있으면 덮어쓰지 않고 차이를 먼저 검토한다. 원본 배포 태그를 그대로 풀면 원본 호스트 전용 지침이 돌아오므로 [적용 기록](codex.md)에 따라 변경을 다시 적용한다.
-2. 설치본에서 `node scripts/package-manifest.ts --check`(파일 집합·sha256)와 `node --test`(결정론 회귀·위생·manifest 게이트 포함)를 확인한다.
+2. 설치본에서 `node scripts/package-manifest.ts --check`(파일 집합·크기)와 `node --test`(결정론 회귀·위생·manifest 게이트 포함)를 확인한다. 내용이 그대로인지는 git(`git status --porcelain -- skills/wiki-desk`)으로, Git 밖 설치본은 받은 폴더와의 `diff -r`로 직접 비교한다. digest를 새로 만들지 않는다.
 3. 프로젝트 루트에서 CLI를 실행한다. 하위 디렉터리에서는 CLI 절대 경로와 `--root <프로젝트 루트>`를 함께 지정한다. 스킬 코드는 공유 코드이고, 위키 계약·카드는 프로젝트 데이터다. Git과 브랜치 동기화가 없는 프로젝트에서도 CLI를 사용할 수 있다.
 
 ## 위키 초기화(브랜치별)
@@ -21,7 +21,7 @@
 
 - 기존 위키(`__llm-wiki/`·`__llm_wiki/` 어느 쪽이든)가 있으면 `init`은 거부한다(덮어쓰기 없음).
 - `wiki_dir`는 계약의 리터럴 그대로다(`__llm-wiki`와 `__llm_wiki`는 다른 값).
-- 적용 후 `status`·`check`·원문 불변을 확인한다. Git 프로젝트는 `git diff --diff-filter=MD -- <source_roots>`를 확인하고, Git이 없는 프로젝트는 실행 전후 원문의 경로 집합·바이트 해시를 비교한다.
+- 적용 후 `status`·`check`·원문 불변을 확인한다. Git 프로젝트는 `git diff --diff-filter=MD -- <source_roots>`를 확인하고, Git이 없는 프로젝트는 실행 전에 원문 폴더를 복사해 두고 실행 뒤 `diff -r <사본> <원문>`으로 직접 비교한다.
 
 - 설치한 프로젝트의 헌장(작업 절차·문서 규칙)에 넣을 항목은 [charter.md](charter.md)를 따른다.
 

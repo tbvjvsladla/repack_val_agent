@@ -7,7 +7,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from support import basic_report, gate, latest_verdict, sc, small_target
+import acceptance_spec as spec
+from support import basic_report, env, gate, latest_verdict, sc, small_target
 
 GIT = shutil.which("git")
 GIT_ENV = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.invalid",
@@ -170,6 +171,46 @@ class Judgment(Base):
 
     def test_allowed_outside_scope_usage_error(self):
         self.snapshot("--scope", "app", allowed=("other",), expect=2)
+
+
+class HashIntegrity(Base):
+    files = {"app/mod.py": "import hashlib\n\n\ndef same(a, b):\n    return hashlib.sha256(a).digest() == hashlib.sha256(b).digest()\n"}
+
+    def hash_signal(self):
+        return next(s for s in json.loads((self.run_dir / "scan_before.json").read_text())["signals"]
+                    if s["rule"] == "ANY-HASH-INTEGRITY")
+
+    def test_hash_integrity_kept_only_with_exception(self):
+        self.snapshot("--check", "true", fix_types=("hash-integrity",))
+        sig = self.hash_signal()
+        basic_report(self.run_dir)
+        code, v = self.verify()
+        self.assertEqual((code, v["items"]["V3"]["status"]), (1, "FAIL"))
+        keep = {"signal": sig["id"], "status": "justified_keep", "evidence": "e", "proposed_by": "structure",
+                "accepted_by": "main"}
+        basic_report(self.run_dir, dispositions=[{**keep, "exception": "allowed_suppression"}])
+        code, v = self.verify()
+        self.assertEqual((code, v["items"]["V8"]["status"]), (1, "FAIL"))
+        basic_report(self.run_dir, dispositions=[{**keep, "exception": "last_resort",
+                                                  "evidence": "no git and no original copy beside the target"}])
+        code, v = self.verify()
+        self.assertEqual(code, 0, v["items"])
+
+    def test_hash_integrity_fix_by_direct_comparison(self):
+        self.snapshot("--check", "true", fix_types=("hash-integrity",))
+        self.edit(text="import filecmp\n\n\ndef same(a, b):\n    return filecmp.cmp(a, b, shallow=False)\n")
+        basic_report(self.run_dir)
+        code, v = self.verify()
+        self.assertEqual(code, 0, v["items"])
+
+    def test_new_hash_in_a_fix_fails(self):
+        self.files = {"app/mod.py": "value = 1\n"}
+        self.target = small_target(self.tmp / "plain", self.files)
+        self.snapshot("--check", "true", fix_types=("hash-integrity",))
+        self.edit(text="import hashlib\n\nvalue = hashlib.sha256(b\"1\").hexdigest()\n")
+        basic_report(self.run_dir)
+        code, v = self.verify()
+        self.assertEqual((code, v["items"]["V4"]["status"]), (1, "FAIL"))
 
 
 class Groups(Base):
@@ -437,6 +478,60 @@ class Regressions(Base):
         (self.run_dir / "report.json").write_text(json.dumps(report))
         code, v = self.verify()
         self.assertEqual((code, v["items"]["V8"]["status"]), (1, "FAIL"))
+
+
+class InstalledSkill(unittest.TestCase):
+    # A copy installed inside the target, run from there, so its own folder lies inside the target.
+    skill_rel = ".claude/skills/anti-code-slop"
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.target = small_target(self.tmp, {"src/a.py": "x = 1  # noqa\n"})
+        self.skill = self.target / self.skill_rel
+        shutil.copytree(spec.SKILL_DIR, self.skill, ignore=shutil.ignore_patterns("tests", "__pycache__"))
+
+    def copy_gate(self, *args) -> subprocess.CompletedProcess:
+        script = self.skill / "scripts" / "slop_gate.py"
+        return subprocess.run([sys.executable, str(script), *map(str, args)], capture_output=True, text=True, env=env())
+
+    def test_allowed_covering_installed_skill_refused(self):
+        for n, allowed in enumerate([".", ".claude", self.skill_rel, self.skill_rel + "/scripts"]):
+            with self.subTest(allowed=allowed):
+                run_dir = self.tmp / f"refused-{n}"
+                proc = self.copy_gate("snapshot", "--target", self.target, "--run-dir", run_dir, "--allowed", allowed)
+                self.assertEqual(proc.returncode, 2, proc.stdout + proc.stderr)
+                self.assertIn("input error", proc.stderr)
+                self.assertIn(self.skill_rel, proc.stderr)
+                self.assertFalse(run_dir.exists())
+        for n, allowed in enumerate(["src", self.skill_rel + "-notes"]):
+            with self.subTest(allowed=allowed):
+                run_dir = self.tmp / f"accepted-{n}"
+                proc = self.copy_gate("snapshot", "--target", self.target, "--run-dir", run_dir, "--allowed", allowed)
+                self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+
+    def test_installed_skill_edit_fails_v1(self):
+        run_dir = self.tmp / "run"
+        proc = self.copy_gate("snapshot", "--target", self.target, "--run-dir", run_dir, "--allowed", "src",
+                              "--fix-types", "lint-suppression", "--behavior-delegated", "unit test")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        excluded = json.loads((run_dir / "scan_before.json").read_text())["files"]["excluded"]
+        self.assertEqual(excluded.get(self.skill_rel + "/SKILL.md"), "anti_code_slop_skill")
+        with open(self.skill / "SKILL.md", "a", encoding="utf-8") as handle:
+            handle.write("edited during the run\n")
+        (self.target / "src" / "a.py").write_text("x = 1\n")
+        basic_report(run_dir)
+        proc = self.copy_gate("verify", "--run-dir", run_dir)
+        v = latest_verdict(run_dir)
+        self.assertEqual((proc.returncode, v["result"], v["items"]["V1"]["status"]), (1, "INCOMPLETE", "FAIL"))
+        self.assertIn(f"changed outside allowed paths: {self.skill_rel}/SKILL.md", v["items"]["V1"]["reasons"])
+
+    def test_skill_folder_as_target_allowed(self):
+        run_dir = self.tmp / "self-run"
+        proc = self.copy_gate("snapshot", "--target", self.skill, "--run-dir", run_dir, "--allowed", ".")
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        checked = json.loads((run_dir / "scan_before.json").read_text())["files"]["checked"]
+        self.assertIn("scripts/slop_gate.py", checked)
 
 
 if __name__ == "__main__":

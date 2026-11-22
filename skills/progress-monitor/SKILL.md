@@ -31,7 +31,12 @@ metadata:
 1. **연다.** 인스턴스를 만들고 `ACTIVE`를 적는다(`campaigns/README.md`). 사용자에게 브리핑 설정 두 가지와, 저장소에 활성화 knob이 있으면 이 캠페인이 켤 선택 수단 스킬을 묻고 `open`을 부른다([monitor.md](references/monitor.md)).
 2. **단계를 돌린다.** `status`의 "스스로 할 수 있는 일"을 위에서부터 한다. 단계마다 새 수행자에게 수행자 지시문을 넘긴다([monitor.md](references/monitor.md)).
 3. **gate를 돌린다.** 묶음의 구성원이 `change`를 모두 끝내면 `gate run`을 부른다. 실패하면 원인을 가려 그 cell을 `cell reopen`으로 다시 연다([gate.md](references/gate.md)).
-4. **검토를 받는다.** 검토 표시가 있는 cell은 gate가 통과한 뒤 새 맥락 검토를 받고 `review record`, `cell close`로 닫는다. 검토의 종료 규칙은 `campaigns/README.md`에 있다.
+4. **검토는 필요할 때만 받는다.** 검토 표시가 있는 cell은 단계를 마친 뒤 새 맥락 검토를 한 번 받는다(`review record`).
+   - clean이면 gate 통과와 함께 닫힌다. gate가 이미 통과해 있으면 `cell close`로 닫는다.
+   - 차단이 있으면 고친 뒤에만 1회를 더한다. 상한은 1회차를 포함한 전체 회차의 최대치이고, 채울 수가 아니다.
+   - 사람이 남은 차단을 받아들이면 `cell close --accept-ref`로 닫는다. 받아들인 검토는 clean처럼 서므로 다시 검토하지 않는다.
+   - 승인·결정 기록은 뜻으로 판정한다. 바이트·글자 차이는 지적하지 않는다.
+   - 규칙의 정본은 `campaigns/README.md` 끝내는 규칙이다.
 5. **방향을 조정한다.** 일이 달라지면 `cell add`, `cell cancel`, `cell move`로 구성을 바꾼다. 후보가 둘 이상이면 실제로 실행해 비교한다([direction.md](references/direction.md)).
 6. **마지막 전체 검증을 돌린다.** 모든 묶음이 통과하거나 멈추거나 취소되면 `final run`을 부른다.
 7. **닫는다.** 결과를 과업의 checklist에 적는다. 멈춘 cell과 gate에서 확인되지 않은 검사는 그 상태 그대로 적는다. `close`를 불러 이 캠페인이 켠 스킬을 끄고 `ACTIVE`를 지운다.
@@ -61,8 +66,8 @@ metadata:
 | `cell cancel\|reopen\|stop <cell> --reason <사유>` | 취소한다, `change`를 다시 연다, 멈춘다 |
 | `cell move <cell> <group> --reason <사유> [--checks <id,...>]` | 묶음을 옮긴다 |
 | `cell resume <cell> --ref <근거>` | 사용자의 승인으로 멈춘 cell을 다시 연다 |
-| `cell close <cell>` | 검토 표시가 있는 cell을 닫는다 |
-| `review record <cell> <review.json>` | 검토 결과를 사건으로 남긴다 |
+| `cell close <cell> [--accept-ref <근거>]` | 서 있는 검토가 clean이거나 받아들인 cell을 닫는다. `--accept-ref`는 사람이 남은 차단을 받아들였을 때 쓴다(`stopped` cell에도 쓴다. gate가 통과해 있지 않으면 cell을 `open`으로 돌리고 gate 통과 때 닫는다) |
+| `review record <cell> <review.json>` | 검토 결과를 사건으로 남긴다. 단계가 끝나지 않았거나(`cell-not-settled`), 서 있는 검토가 clean이거나(`review-not-needed`), 서 있는 차단을 아직 고치지 않았으면(`fix-first`) 거절한다 |
 | `hitl open (--cell <cell> \| --group <group> \| --final) --kind <종류> --question <물음>` | 결정을 사람에게 넘긴다 |
 | `hitl answer <id> --ref <근거> [--allow]` | 사용자의 답을 기록한다 |
 | `event <json>` | 그 밖의 사건을 한 줄 남긴다 |

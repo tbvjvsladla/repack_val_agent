@@ -75,7 +75,7 @@
 |---|---|---|
 | 1 | 실행 중인 단계를 끝낸다 | cell이 `open`이고 단계가 `running`이다 |
 | 2 | gate를 돌린다 | `gate run`의 조건을 채우고 gate가 `pending`이다 |
-| 3 | 검토를 받고 닫는다 | 검토 표시가 있는 cell이 `open`이고 그 묶음의 gate가 `passed`다 |
+| 3 | 서 있는 검토에 따라: 없거나 실행되지 않았으면 검토를 받는다(`review`), clean이거나 받아들였으면 닫는다(`close`), 차단이면 고치거나 사람에게 넘긴다(`fix`) | 검토 표시가 있는 cell이 `open`이고 그 묶음의 gate가 `passed`다 |
 | 4 | 실패한 gate의 원인을 가르고 다시 연다 | gate가 `failed`다 |
 | 5 | 실패한 단계를 고쳐 다시 닫는다 | cell이 `open`이고 단계가 `failed`다 |
 | 6 | 단계를 시작한다 | `phase start`의 조건을 채운다 |

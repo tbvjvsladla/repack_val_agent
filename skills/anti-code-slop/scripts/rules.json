@@ -13,7 +13,12 @@
       "external_constraint"
     ],
     "commented-code": [],
-    "banner-comment": []
+    "banner-comment": [],
+    "hash-integrity": [
+      "last_resort",
+      "external_constraint",
+      "not_integrity"
+    ]
   },
   "rules": [
     {
@@ -731,6 +736,93 @@
       ]
     },
     {
+      "id": "ANY-HASH-INTEGRITY",
+      "languages": [
+        "rust",
+        "python",
+        "js",
+        "shell"
+      ],
+      "grade": "confirmed",
+      "fix_type": "hash-integrity",
+      "where": "code",
+      "patterns": {
+        "python": "\\bhashlib\\s*\\.\\s*(sha(1|224|256|384|512)|sha3_(224|256|384|512)|blake2[bs]|md5|new|file_digest)\\s*\\(|^\\s*from\\s+hashlib\\s+import\\b",
+        "js": "\\bcreateHash\\s*\\(|\\bsubtle\\s*\\.\\s*digest\\s*\\(",
+        "rust": "\\b(sha1|sha2|sha3|md5|blake2|blake3)\\s*::|\\b(Sha(1|224|256|384|512)|Sha3_(224|256|384|512)|Md5|Blake2[bs](Var)?)\\s*::\\s*(new|digest|default)\\b",
+        "shell": "(^|[;&|(`]\\s*|\\s)(sha(1|224|256|384|512)sum|shasum|md5sum|b2sum)\\b|\\bopenssl\\s+(dgst|sha(1|224|256|384|512)|md5)\\b"
+      },
+      "manual_ref": "사용자 지시(2026-11-22) 무결성·일치 검증: git, 직접 비교 다음의 최후의 수단",
+      "positive": [
+        {
+          "lang": "python",
+          "code": "digest = hashlib.sha256(path.read_bytes()).hexdigest()\n",
+          "count": 1
+        },
+        {
+          "lang": "python",
+          "code": "from hashlib import sha256\nsame = sha256(a).digest() == sha256(b).digest()\n",
+          "count": 1
+        },
+        {
+          "lang": "js",
+          "code": "const h = crypto.createHash('sha256').update(buf).digest('hex');\n",
+          "count": 1
+        },
+        {
+          "lang": "js",
+          "code": "const d = await crypto.subtle.digest('SHA-256', data);\n",
+          "count": 1
+        },
+        {
+          "lang": "rust",
+          "code": "let d = Sha256::digest(&bytes);\n",
+          "count": 1
+        },
+        {
+          "lang": "rust",
+          "code": "use sha2::{Digest, Sha256};\n",
+          "count": 1
+        },
+        {
+          "lang": "shell",
+          "code": "sha256sum build.tar > build.sum\n",
+          "count": 1
+        },
+        {
+          "lang": "shell",
+          "code": "h=$(openssl dgst -sha256 a.bin)\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "python",
+          "code": "label = \"hashlib.sha256(x)\"\n"
+        },
+        {
+          "lang": "python",
+          "code": "def sha256_label(): pass\n"
+        },
+        {
+          "lang": "js",
+          "code": "function createHashLabel() {}\n"
+        },
+        {
+          "lang": "rust",
+          "code": "let s = \"sha2::Sha256\";\n"
+        },
+        {
+          "lang": "shell",
+          "code": "echo \"sha256sum a\"\n"
+        },
+        {
+          "lang": "shell",
+          "code": "git diff --quiet HEAD -- a.bin\n"
+        }
+      ]
+    },
+    {
       "id": "PROSE-U7-AI-VOCAB",
       "languages": [
         "prose"
@@ -943,6 +1035,44 @@
         {
           "lang": "prose",
           "code": "Use the ledger.\n"
+        }
+      ]
+    },
+    {
+      "id": "PROSE-HASH-RECORD",
+      "languages": [
+        "prose"
+      ],
+      "grade": "heuristic",
+      "fix_type": "hash-integrity",
+      "where": "prose",
+      "pattern": "(?a)(?i)\\bsha-?(1|224|256|384|512)(sum)?\\b|\\b[0-9a-f]{64}\\b",
+      "manual_ref": "사용자 지시(2026-11-22) 무결성·일치 검증: git, 직접 비교 다음의 최후의 수단",
+      "positive": [
+        {
+          "lang": "prose",
+          "code": "The archive is intact: sha256 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08.\n",
+          "count": 1
+        },
+        {
+          "lang": "prose",
+          "code": "Record the SHA-256 of each answer file.\n",
+          "count": 1
+        },
+        {
+          "lang": "prose",
+          "code": "두 판의 HEAD sha256이 같았다.\n",
+          "count": 1
+        }
+      ],
+      "negative": [
+        {
+          "lang": "prose",
+          "code": "Check that the file is unchanged with git diff.\n"
+        },
+        {
+          "lang": "prose",
+          "code": "Run it.\n```\nsha256sum a\n```\n"
         }
       ]
     }

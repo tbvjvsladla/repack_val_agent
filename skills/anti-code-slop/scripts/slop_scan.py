@@ -15,6 +15,9 @@ import tokenize
 from pathlib import Path
 
 RULES_PATH = Path(__file__).resolve().with_name("rules.json")
+# This skill's own folder. Installed inside a target (`.claude/skills/anti-code-slop/`), its
+# rule examples and seeded fixtures would be scanned as the target's slop.
+SKILL_ROOT = Path(__file__).resolve().parents[1]
 
 # Build outputs and tool caches. Never hashed, never scanned.
 HASH_EXCLUDE_DIRS = frozenset({
@@ -132,6 +135,15 @@ def detect_language(rel: str, data: bytes) -> str | None:
         if SHELL_SHEBANG.match(first):
             return "shell"
     return None
+
+
+def skill_rel(root: Path) -> str | None:
+    """The skill folder relative to `root` when it lies strictly inside it, else None."""
+    try:
+        rel = SKILL_ROOT.relative_to(Path(root).resolve())
+    except ValueError:
+        return None
+    return rel.as_posix() if rel.parts else None
 
 
 def scan_exclusion(rel: str, data: bytes) -> str | None:
@@ -875,8 +887,12 @@ def scan_tree(root: Path, rules: list[dict], scope=None, only=None, force=None) 
     root = Path(root)
     force = force or {}
     checked, unchecked, excluded, errors, signals = {}, [], {}, [], []
+    own = skill_rel(root)
     for rel in walk_files(root):
         if not _in_scope(rel, scope) or (only is not None and rel not in only):
+            continue
+        if own and rel not in force and under(rel, [own]):
+            excluded[rel] = "anti_code_slop_skill"
             continue
         data = (root / rel).read_bytes()
         reason = None if rel in force else scan_exclusion(rel, data)
@@ -981,8 +997,11 @@ def protected_tree(root: Path, rules: list[dict], scope=None, force=None) -> dic
     force = force or {}
     constraint = constraint_regex(rules)
     result = {}
+    own = skill_rel(root)
     for rel in walk_files(root):
         if not _in_scope(rel, scope):
+            continue
+        if own and rel not in force and under(rel, [own]):
             continue
         data = (root / rel).read_bytes()
         if rel not in force and scan_exclusion(rel, data):

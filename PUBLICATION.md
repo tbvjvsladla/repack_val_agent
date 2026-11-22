@@ -14,8 +14,8 @@
 | `skill-activation.local.yaml`(로컬 knob) | 로컬 보존, Git 추적·공개본 제외 |
 | 위키 카드·index·log·receipt·archive·캐시 | 로컬 보존, Git 추적·공개본 제외 |
 | PUBLIC_EXPORT.json | 공개 후보마다 새로 생성, 원본 Git 추적 제외 |
-| repack_target/README.md | 개선 대상 폴더의 사용 지침만 공개 |
-| repack_target의 대상 원본·작업본·개선 결과, 실제 외부 프로젝트 소스, seed, temp, 루트 tests | 제외 |
+| repack_target/README.md | 개선 대상과 외부 배포 패키지를 두는 폴더의 사용 지침만 공개 |
+| repack_target의 대상 원본·작업본·개선 결과·외부 배포 패키지, 실제 외부 프로젝트 소스, seed, temp, 루트 tests | 제외 |
 | 개인 Codex 설정, 하네스별 로컬 설정과 로컬 훅, 실제 worker config, 인증·비밀값 | 제외. 워커 설정과 훅 설치는 예시만 제공 |
 | 원시 stdout/stderr, 모델 응답·실행 상태, 캐시·Ouroboros 데이터 | 제외 |
 | `skill-activation.yaml`, `scripts/skill_activation.py`, `scripts/test_skill_activation.py` | 공개. 선택 수단의 공유 knob(모두 off)과 링크 동기화·검사, 그 시험 |

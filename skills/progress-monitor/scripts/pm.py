@@ -52,7 +52,7 @@ DEFAULT_MONITOR = {
 RESERVED_EVENTS = {
     "campaign-open", "phase-start", "phase-retry", "phase-close", "check", "gate", "final",
     "gate-reopen", "cell-add", "cell-cancel", "regroup", "cell-reopen", "cell-stop", "cell-resume",
-    "cell-close", "review", "hitl", "hitl-answer", "invalidate", "explore-open", "hang",
+    "cell-close", "review", "review-accept", "hitl", "hitl-answer", "invalidate", "explore-open", "hang",
     "monitor-release", "brief", "campaign-close",
 }
 # Skill activation: the repository's activation script and shared knob, when both exist.
@@ -942,7 +942,7 @@ def cmd_gate_run(camp: Campaign, args) -> dict:
         if state == "passed":
             gate["members"] = list(members)
             for cell in camp.members(group):
-                if cell["review"] == "none":
+                if cell["review"] == "none" or standing_review(camp, cell["cell"])[0] in CLOSABLE:
                     cell["state"] = "closed"
                     closed.append(cell["cell"])
             camp.save_decl()
@@ -1108,6 +1108,43 @@ def cmd_explore_close(camp: Campaign, args) -> dict:
 def review_round(camp: Campaign, cell: dict) -> int:
     rounds = [e.get("round", 0) for e in camp.events() if e.get("event") == "review" and e.get("cell") == cell["cell"]]
     return max([int(cell.get("review_base") or 0)] + [r for r in rounds if isinstance(r, int)])
+
+
+def settled_at(camp: Campaign, name: str) -> datetime | None:
+    """When the cell last finished changing: the latest end of its phases, None while one is not done."""
+    moments = []
+    for phase in camp.phases:
+        data = camp.phase(name, phase)
+        moment = parse_time(data.get("ended"))
+        if data["state"] != "done" or moment is None:
+            return None
+        moments.append(moment)
+    return max(moments) if moments else None
+
+
+def standing_review(camp: Campaign, name: str) -> tuple[str, dict | None]:
+    """The review that still speaks for the cell as it is now, with its standing.
+
+    Standing is 'none', 'not-run', 'clean', 'blocking' or 'accepted' (a person accepted the blocking
+    findings with `cell close --accept-ref`). A review stands when it was recorded after the cell last
+    finished changing. A gate re-run caused by another cell does not unseat it, so a cell closed without
+    blocking findings, or with findings a person accepted, is not reviewed again."""
+    settled = settled_at(camp, name)
+    events = [e for e in camp.events() if e.get("cell") == name and e.get("event") in ("review", "review-accept")]
+    reviews = [i for i, e in enumerate(events) if e["event"] == "review"]
+    latest = events[reviews[-1]] if reviews else None
+    when = parse_time(latest.get("utc")) if latest else None
+    if latest is None or settled is None or when is None or when <= settled:
+        return "none", None
+    if latest.get("ran") is not True:
+        return "not-run", latest
+    if latest.get("clean") is True:
+        return "clean", latest
+    accepted = any(e["event"] == "review-accept" for e in events[reviews[-1] + 1:])
+    return ("accepted" if accepted else "blocking"), latest
+
+
+CLOSABLE = ("clean", "accepted")
 
 
 def ensure_group(camp: Campaign, group: str, checks: list[str] | None) -> list[str] | None:
@@ -1278,28 +1315,46 @@ def cmd_cell_resume(camp: Campaign, args) -> dict:
         return {"ok": True, "cell": args.cell, "state": "open"}
 
 
+CLOSE_HINTS = {"none": "record a review of the cell as it is now", "not-run": "record a review that ran",
+               "blocking": "fix it (cell reopen), or close --accept-ref once a person accepts the findings"}
+
+
 def cmd_cell_close(camp: Campaign, args) -> dict:
+    accept = getattr(args, "accept_ref", None)
+    if accept is not None and not accept.strip():
+        raise Usage("cell close --accept-ref needs where the person's acceptance is recorded")
     with camp.lock():
         cell = camp.cell(args.cell)
         gate = camp.gate(cell["group"])
         if cell["review"] == "none":
             raise Refused("cell-not-marked", hint="an unmarked cell closes when its gate passes")
-        if cell["state"] != "open" or gate["state"] != "passed":
+        allowed = ("open", "stopped") if accept else ("open",)
+        if cell["state"] not in allowed or (gate["state"] != "passed" and not accept):
             raise Refused("conditions-unmet", cell_state=cell["state"], gate_state=gate["state"])
-        passed_at = parse_time(gate.get("ended"))
-        reviews = [e for e in camp.events() if e.get("event") == "review" and e.get("cell") == args.cell]
-        latest = reviews[-1] if reviews else None
-        when = parse_time(latest.get("utc")) if latest else None
-        if not latest or passed_at is None or when is None or when <= passed_at \
-                or latest.get("ran") is not True or latest.get("clean") is not True:
-            raise Refused("no-clean-review-after-gate", latest_round=latest.get("round") if latest else None)
+        standing, review = standing_review(camp, args.cell)
+        fields: dict = {}
+        if accept:
+            if standing != "blocking":
+                raise Refused("nothing-to-accept", standing=standing,
+                              hint="close without --accept-ref" if standing in CLOSABLE else CLOSE_HINTS[standing])
+            fields = {"accepted_ref": accept, "round": review.get("round"), "residual": review.get("blocking")}
+            camp.emit("review-accept", cell=args.cell, **fields)
+            if gate["state"] != "passed":                      # e.g. stopped at the cap while the gate was pending
+                cell["state"] = "open"
+                camp.save_decl()
+                clear_stalls(camp, cell=args.cell)
+                return {"ok": True, "cell": args.cell, "state": "open", **fields,
+                        "note": "accepted; the cell closes when its gate passes"}
+        elif standing not in CLOSABLE:
+            raise Refused("no-standing-clean-review", standing=standing,
+                          round=review.get("round") if review else None, hint=CLOSE_HINTS[standing])
         cell["state"] = "closed"
         if args.cell not in gate["members"]:
             gate["members"].append(args.cell)
             camp.save_gate(cell["group"], gate)
         camp.save_decl()
-        camp.emit("cell-close", cell=args.cell)
-        return {"ok": True, "cell": args.cell, "state": "closed"}
+        camp.emit("cell-close", cell=args.cell, **fields)
+        return {"ok": True, "cell": args.cell, "state": "closed", **fields}
 
 
 def cmd_review_record(camp: Campaign, args) -> dict:
@@ -1313,6 +1368,13 @@ def cmd_review_record(camp: Campaign, args) -> dict:
         cell = camp.cell(args.cell)
         if cell["state"] != "open":
             raise Refused("cell-not-open", state=cell["state"])
+        if settled_at(camp, args.cell) is None:
+            raise Refused("cell-not-settled", hint="a review looks at a finished change: close its phases first")
+        standing, current = standing_review(camp, args.cell)
+        if standing in CLOSABLE:
+            raise Refused("review-not-needed", round=current.get("round"), standing=standing, hint="cell close")
+        if standing == "blocking":
+            raise Refused("fix-first", round=current.get("round"), hint=CLOSE_HINTS["blocking"])
         expected = review_round(camp, cell) + 1
         if review["round"] != expected:
             raise Refused("round-out-of-order", expected=expected)
@@ -1472,9 +1534,18 @@ def actionable(camp: Campaign) -> list[dict]:
             add(2, "gate-run", f"묶음 {name}의 gate를 돌린다", f"{pm} gate run {name}", group=name)
     for cell in cells:
         if cell["review"] != "none" and camp.gate(cell["group"])["state"] == "passed":
-            add(3, "review", f"cell {cell['cell']}의 새 맥락 검토를 받고 닫는다",
-                f"{pm} review record {cell['cell']} <review.json> 뒤 {pm} cell close {cell['cell']}",
-                cell=cell["cell"], group=cell["group"])
+            name = cell["cell"]
+            standing, _ = standing_review(camp, name)
+            if standing in CLOSABLE:
+                add(3, "close", f"cell {name}에 서 있는 검토가 {standing}이다. 닫는다", f"{pm} cell close {name}",
+                    cell=name, group=cell["group"])
+            elif standing == "blocking":
+                add(3, "fix", f"cell {name}의 차단 지적을 고치거나 사람에게 넘긴다(다음 회차는 고친 뒤에만)",
+                    f"{pm} cell reopen {name} --reason <고칠 차단> 또는 사람이 받아들이면 "
+                    f"{pm} cell close {name} --accept-ref <근거>", cell=name, group=cell["group"])
+            else:
+                add(3, "review", f"cell {name}의 새 맥락 검토를 받는다(차단이 없으면 그 회차로 닫힌다)",
+                    f"{pm} review record {name} <review.json>", cell=name, group=cell["group"])
     for group in camp.decl["groups"]:
         name = group["group"]
         if not held[name] and camp.gate(name)["state"] == "failed" and camp.members(name):
@@ -1637,7 +1708,7 @@ def directive(pm: str, item: dict, count: int, retries: int) -> tuple[str, str]:
         if kind == "phase-running":
             return "retry", (f"새 수행자로 다시 시작한다: {pm} phase retry {item['cell']} {item['phase']}")
         return "retry", f"그 일을 한 번 더 시도한다: {item['command']}"
-    if kind in ("phase-running", "review", "phase-failed", "phase-start"):
+    if kind in ("phase-running", "review", "close", "fix", "phase-failed", "phase-start"):
         return "bypass", (f"이 cell을 멈추고 다음 일로 넘어간다: {pm} cell stop {item['cell']} --reason hang")
     if kind in ("gate-run", "gate-failed"):
         return "bypass", (f"사람에게 넘기고 다음 일로 넘어간다: {pm} hitl open --group {item['group']} "
@@ -1783,7 +1854,7 @@ def build_parser() -> argparse.ArgumentParser:
     leaf(cell, "reopen", cmd_cell_reopen, arg("cell"), arg("--reason", required=True))
     leaf(cell, "stop", cmd_cell_stop, arg("cell"), arg("--reason", required=True))
     leaf(cell, "resume", cmd_cell_resume, arg("cell"), arg("--ref", default=None))
-    leaf(cell, "close", cmd_cell_close, arg("cell"))
+    leaf(cell, "close", cmd_cell_close, arg("cell"), arg("--accept-ref", default=None))
     leaf(branch("review"), "record", cmd_review_record, arg("cell"), arg("review"))
     hitl = branch("hitl")
     opened = leaf(hitl, "open", cmd_hitl_open, arg("--kind", required=True), arg("--question", required=True))

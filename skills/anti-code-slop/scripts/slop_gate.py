@@ -216,9 +216,14 @@ def cmd_snapshot(args) -> int:
     scope = rel_paths(target, args.scope) if args.scope else ["."]
     allowed = rel_paths(target, args.allowed)
     protect = rel_paths(target, args.protect)
+    # Keeping the installed skill folder out of --allowed leaves V1 to flag any edit to it,
+    # since the scan does not look inside that folder.
+    own = sc.skill_rel(target)
     for path in allowed:
         if not sc.under(path, scope):
             raise UsageError(f"--allowed path outside --scope: {path}")
+        if own and (sc.under(own, [path]) or sc.under(path, [own])):
+            raise UsageError(f"--allowed path overlaps the anti-code-slop skill folder inside the target ({own}): {path}")
     if args.base_ref:
         changed = git_scope(target, args.base_ref)
         scope = sorted(p for p in changed if sc.under(p, scope))

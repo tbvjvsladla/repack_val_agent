@@ -13,7 +13,7 @@
 - 지침과 참조의 실행 경로를 `.agents/skills/wiki-desk/`로 바꾸고 Claude 전용 Bash 허용 규칙 설명을 Codex의 작업 디렉터리·현재 세션 권한 설명으로 교체했다.
 - 헌장 예시를 `AGENTS.md`로 안내하며, 실제 프로젝트 규칙·위키 계약은 별도 합의한다.
 - `agents/openai.yaml`에 표시 이름·호출 예시와 자동 선택 정책을 명시했다.
-- `PACKAGE_MANIFEST.json`은 조정된 설치본의 파일 집합·바이트·sha256 기준이다. 원본 배포본과 동일한 바이트라는 뜻은 아니다.
+- `PACKAGE_MANIFEST.json`은 조정된 설치본의 파일 집합·바이트 기준이다. 원본 배포본과 동일한 바이트라는 뜻은 아니다. 2026-11-22에 digest(sha256)를 뺐다(manifest_version 2.0.0). 설치본 내용은 설치한 프로젝트의 git으로 확인한다([설치](installation.md) 2단계).
 
 ## 공식 근거
 2026-11-03 확인:

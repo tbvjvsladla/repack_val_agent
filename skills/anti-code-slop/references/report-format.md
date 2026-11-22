@@ -17,7 +17,7 @@
 | `verdict-<n>.json` | verify | 판정 결과. 덮지 않고 번호를 올린다 |
 | `restore-<n>.json` | restore | 되돌린 파일과 거절 사유 |
 
-해시 제외 폴더(`.git`, `target`, `node_modules`, `__pycache__`, `.venv`, `venv`, `.mypy_cache`, `.pytest_cache`, `.ruff_cache`)와 `*.pyc`는 해시·스캔·복구 모두에서 뺀다. `vendor`, `third_party`, `dist`, `build` 폴더, 생성물 표지(`@generated`, `DO NOT EDIT`)가 있는 파일, 바이너리, 2MB 초과, 잠금 파일은 스캔에서만 뺀다(해시는 해서 범위 이탈을 본다).
+해시 제외 폴더(`.git`, `target`, `node_modules`, `__pycache__`, `.venv`, `venv`, `.mypy_cache`, `.pytest_cache`, `.ruff_cache`)와 `*.pyc`는 해시·스캔·복구 모두에서 뺀다. `vendor`, `third_party`, `dist`, `build` 폴더, 생성물 표지(`@generated`, `DO NOT EDIT`)가 있는 파일, 바이너리, 2MB 초과, 잠금 파일, 대상 안에 설치된 이 스킬의 폴더(사유 `anti_code_slop_skill`)는 스캔에서만 뺀다(해시는 해서 범위 이탈을 본다). 스킬 폴더 자체를 대상으로 감사하면 스킬 폴더도 스캔한다.
 
 ## 신호 ID
 
@@ -54,6 +54,7 @@
 | lint-suppression | `allowed_suppression`(스타일 전용·결함 규칙), `external_constraint` |
 | swallowed-error | `external_constraint` |
 | commented-code, banner-comment | 없음. 지우거나 `blocked` |
+| hash-integrity | `last_resort`(git도 직접 비교도 닿지 않음), `external_constraint`(외부 규격이 digest를 요구), `not_integrity`(무결성·일치 확인에 쓰지 않음). `evidence`에 git·직접 비교를 쓸 수 없는 이유를 적는다 |
 
 넓은 예외를 삼키는 코드에 정당한 이유가 있으면(소멸자나 종료 처리의 최선형 정리) 예외 형식을 좁혀 고친다. 좁힌 결과는 휴리스틱 신호라 판정만 받는다.
 

@@ -69,6 +69,33 @@ class Scan(unittest.TestCase):
             self.assertEqual(result["files"]["unchecked"], ["a.go"])
             self.assertEqual(result["files"]["checked"], {"b.py": "python", "tool": "shell"})
 
+    def test_installed_skill_folder_not_scanned(self):
+        """Installed inside the target, the skill's own fixtures must not count as the target's slop."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "project"
+            (root / "src").mkdir(parents=True)
+            (root / "src" / "a.py").write_text("x = 1  # noqa\n")
+            skill = root / ".claude" / "skills" / "anti-code-slop"
+            skill.mkdir(parents=True)
+            (skill / "seeded.py").write_text("y = 2  # noqa\n")
+            (root / "src" / "b.py").write_text("# IMPORTANT: do not remove\nz = 3\n")
+            (skill / "notes.py").write_text("# IMPORTANT: do not remove\nw = 4\n")
+            saved = sc.SKILL_ROOT
+            sc.SKILL_ROOT = skill.resolve()
+            try:
+                result = sc.scan_tree(root, self.rules, ["."])
+                protected = sc.protected_tree(root, self.rules, ["."])
+                inside = sc.scan_tree(skill, self.rules, ["."])
+            finally:
+                sc.SKILL_ROOT = saved
+            self.assertEqual(sorted({s["file"] for s in result["signals"]}), ["src/a.py", "src/b.py"])
+            self.assertEqual(result["files"]["excluded"].get(".claude/skills/anti-code-slop/seeded.py"),
+                             "anti_code_slop_skill")
+            self.assertIn(".claude/skills/anti-code-slop/seeded.py", sc.hash_tree(root), "still hashed for V1")
+            self.assertEqual(sorted(protected), ["src/b.py"])
+            self.assertEqual(sorted({s["file"] for s in inside["signals"]}), ["notes.py", "seeded.py"],
+                             "auditing the skill itself still scans it")
+
     def test_exclusion_uses_relative_parts(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "target" / "build" / "project"

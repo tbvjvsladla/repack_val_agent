@@ -173,6 +173,14 @@ class Sandbox:
                 self.ok("phase", "start", name, phase)
                 self.ok("phase", "close", name, phase)
 
+    def refix(self, name: str, gate: str | None = None) -> None:
+        """Reopen a cell for a fix, finish the change again and, if given, pass its gate again."""
+        self.ok("cell", "reopen", name, "--reason", "fix the blocking findings")
+        self.ok("phase", "start", name, "change")
+        self.ok("phase", "close", name, "change")
+        if gate:
+            self.ok("gate", "run", gate)
+
     # -- reading state
     def cell(self, name: str) -> dict:
         return next(c for c in self.read(self.inst / "campaign.json")["cells"] if c["cell"] == name)
@@ -201,8 +209,8 @@ class Sandbox:
     def group_state(self, group: str) -> str:
         return next(g for g in self.ok("status")["groups"] if g["group"] == group)["state"]
 
-    def kinds(self) -> list[str]:
-        return [item["kind"] for item in self.ok("status")["actionable"]]
+    def kinds(self, cell: str | None = None) -> list[str]:
+        return [item["kind"] for item in self.ok("status")["actionable"] if cell is None or item.get("cell") == cell]
 
     def assert_lint(self) -> None:
         if not LINT.is_file():
@@ -651,34 +659,110 @@ class TransitionTests(unittest.TestCase):
                          ("pending", "open", "g-a"))
         sb.assert_lint()
 
-    def test_marked_cell_closes_after_clean_review(self):
+    def test_clean_review_before_the_gate_closes_with_the_gate(self):
         sb = Sandbox(self)
         sb.set_cell("a1", review="judgment")
         sb.finish("a1", "a2")
         sb.ok("review", "record", "a1", sb.review(1, clean=True))       # before the gate passes
+        self.assertEqual(sb.no("cell", "close", "a1")["refused"], "conditions-unmet")
+        self.assertEqual(sb.ok("gate", "run", "g-a")["closed"], ["a1", "a2"])
+        self.assertEqual(len(sb.events("review")), 1)
+        sb.assert_lint()
+
+    def test_next_round_only_after_a_fixed_blocking_finding(self):
+        sb = Sandbox(self)
+        sb.set_cell("a1", review="judgment")
+        self.assertEqual(sb.no("review", "record", "a1", sb.review(1, clean=True))["refused"], "cell-not-settled")
+        sb.finish("a1", "a2")
         sb.ok("gate", "run", "g-a")
-        self.assertEqual(sb.no("cell", "close", "a1")["refused"], "no-clean-review-after-gate")
-        sb.ok("review", "record", "a1", sb.review(2, clean=False))
-        self.assertEqual(sb.no("cell", "close", "a1")["refused"], "no-clean-review-after-gate")
-        sb.ok("review", "record", "a1", sb.review(3, clean=True))
+        self.assertEqual(sb.kinds("a1"), ["review"])
+        sb.ok("review", "record", "a1", sb.review(1, clean=False))
+        self.assertEqual(sb.kinds("a1"), ["fix"])
+        refused = sb.no("cell", "close", "a1")
+        self.assertEqual((refused["refused"], refused["standing"]), ("no-standing-clean-review", "blocking"))
+        self.assertEqual(sb.no("review", "record", "a1", sb.review(2, clean=True))["refused"], "fix-first")
+        sb.ok("cell", "reopen", "a1", "--reason", "fix r1-1")
+        sb.ok("phase", "start", "a1", "change")
+        sb.ok("phase", "close", "a1", "change")
+        self.assertEqual(sb.ok("gate", "run", "g-a")["closed"], ["a2"])   # a1 has no review of the fix yet
+        sb.ok("review", "record", "a1", sb.review(2, clean=True))
+        self.assertEqual(sb.kinds("a1"), ["close"])
+        self.assertEqual(sb.no("review", "record", "a1", sb.review(3, clean=True))["refused"], "review-not-needed")
         sb.ok("cell", "close", "a1")
         self.assertEqual(sb.cell("a1")["state"], "closed")
+        sb.assert_lint()
+
+    def test_gate_rerun_by_another_cell_keeps_a_standing_review(self):
+        sb = Sandbox(self)
+        sb.set_cell("a1", review="judgment")
+        sb.finish("a1", "a2")
+        sb.ok("gate", "run", "g-a")
+        sb.ok("review", "record", "a1", sb.review(1, clean=True))
+        sb.ok("cell", "close", "a1")
+        sb.ok("cell", "reopen", "a2", "--reason", "a2 changes again")
+        self.assertEqual(sb.cell("a1")["state"], "open")
+        sb.ok("phase", "start", "a2", "change")
+        sb.ok("phase", "close", "a2", "change")
+        self.assertEqual(sb.ok("gate", "run", "g-a")["closed"], ["a1", "a2"])
+        self.assertEqual(len(sb.events("review")), 1)                   # no second review of the unchanged a1
+        sb.assert_lint()
+
+    def test_person_accepts_blocking_findings(self):
+        sb = Sandbox(self)
+        sb.set_cell("a1", review="judgment")
+        sb.finish("a1", "a2")
+        sb.ok("gate", "run", "g-a")
+        self.assertEqual(sb.no("cell", "close", "a1", "--accept-ref", "docs/x.md")["refused"], "nothing-to-accept")
+        sb.ok("review", "record", "a1", sb.review(1, clean=False))
+        sb.no("cell", "close", "a1", "--accept-ref", " ", code=2)
+        closed = sb.ok("cell", "close", "a1", "--accept-ref", "docs/decision.md")
+        self.assertEqual((closed["state"], closed["round"]), ("closed", 1))
+        event = sb.events("cell-close")[-1]
+        self.assertEqual((event["accepted_ref"], [f["id"] for f in event["residual"]]), ("docs/decision.md", ["r1-1"]))
+        self.assertEqual(len(sb.events("review-accept")), 1)
+        sb.refix("a2")                                                  # another cell re-runs the gate
+        self.assertEqual(sb.no("review", "record", "a1", sb.review(2, clean=True))["refused"], "review-not-needed")
+        self.assertEqual(sb.ok("gate", "run", "g-a")["closed"], ["a1", "a2"])
+        sb.assert_lint()
+
+    def test_accept_a_cell_stopped_while_its_gate_is_pending(self):
+        sb = Sandbox(self)
+        sb.set_cell("a1", review="judgment")
+        sb.finish("a1", "a2")
+        for number in (1, 2):
+            sb.ok("review", "record", "a1", sb.review(number, clean=False))
+            sb.refix("a1")                                              # no gate run in between
+        self.assertTrue(sb.ok("review", "record", "a1", sb.review(3, clean=False))["stopped"])
+        self.assertEqual(next(g for g in sb.ok("status")["groups"] if g["group"] == "g-a")["gate"], "pending")
+        accepted = sb.ok("cell", "close", "a1", "--accept-ref", "docs/accept.md")
+        self.assertEqual((accepted["state"], accepted["round"]), ("open", 3))
+        self.assertEqual(sb.ok("gate", "run", "g-a")["closed"], ["a1", "a2"])
         sb.assert_lint()
 
     def test_review_cap_stops_only_if_blocking(self):
         sb = Sandbox(self)
         sb.set_cell("a1", review="judgment")
+        sb.finish("a1", "a2")
+        sb.ok("gate", "run", "g-a")
         for number in (1, 2):
             self.assertFalse(sb.ok("review", "record", "a1", sb.review(number, clean=False))["stopped"])
+            sb.refix("a1", "g-a")
         self.assertTrue(sb.ok("review", "record", "a1", sb.review(3, clean=False))["stopped"])
         self.assertEqual(sb.cell("a1")["state"], "stopped")
         sb.ok("cell", "resume", "a1", "--ref", "docs/approval.md")
+        sb.refix("a1", "g-a")
         self.assertTrue(sb.ok("review", "record", "a1", sb.review(4, clean=False))["stopped"])
+        sb.ok("cell", "close", "a1", "--accept-ref", "docs/accept.md")  # a stopped cell a person accepts
+        self.assertEqual(sb.cell("a1")["state"], "closed")
+        sb.assert_lint()
 
         clean = Sandbox(self)
         clean.set_cell("a1", review="judgment")
+        clean.finish("a1", "a2")
+        clean.ok("gate", "run", "g-a")
         for number in (1, 2):
             clean.ok("review", "record", "a1", clean.review(number, clean=False))
+            clean.refix("a1", "g-a")
         self.assertFalse(clean.ok("review", "record", "a1", clean.review(3, clean=True))["stopped"])
         self.assertEqual(clean.cell("a1")["state"], "open")
 
@@ -693,9 +777,11 @@ class TransitionTests(unittest.TestCase):
     def test_parentless_cell_review_is_none(self):
         sb = Sandbox(self)
         sb.set_cell("a1", review="judgment")
+        sb.finish("a1")
         sb.ok("review", "record", "a1", sb.review(1, clean=False))
         self.assertEqual(sb.ok("cell", "add", sb.spec("orphan", "g-a"))["review"], "none")
         self.assertEqual(sb.ok("cell", "add", sb.spec("child", "g-a", parent="a1"))["review"], "judgment")
+        sb.finish("child")
         self.assertEqual(sb.no("review", "record", "child", sb.review(1, clean=True))["expected"], 2)
         sb.ok("review", "record", "child", sb.review(2, clean=True))
         self.assertEqual(sb.cell("child")["origin"], "auto")

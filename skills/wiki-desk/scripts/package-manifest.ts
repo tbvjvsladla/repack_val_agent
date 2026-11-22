@@ -1,22 +1,22 @@
-// PACKAGE_MANIFEST.json 생성·검증(배포자용) — 패키지 파일별 path·bytes·mode·sha256.
+// PACKAGE_MANIFEST.json 생성·검증(배포자용) — 패키지 파일별 path·bytes·mode. digest는 적지 않는다.
 //   node scripts/package-manifest.ts [패키지 루트]           # 생성(덮어쓰기)
-//   node scripts/package-manifest.ts --check [패키지 루트]   # 검증 — 파일 집합·bytes·mode·sha256이 다르면 종료코드 1
-// manifest 자신과 INVENTORY_EXCLUDES는 목록에 넣지 않는다. mode는 git이 보존하는 두 값(0644/0755)으로 적어
-// 작업 트리에서 만든 manifest가 git archive로 받은 설치본에서도 같게 검증된다. 형식 = cicd 패키지 공통(manifest_version 1.0.0).
-import { createHash } from "node:crypto";
+//   node scripts/package-manifest.ts --check [패키지 루트]   # 검증 — 파일 집합·bytes가 다르면 종료코드 1
+// manifest는 패키지를 이루는 파일의 목록이다. 내용이 그대로인지는 git(`git status --porcelain`)이나 받은 원본과의
+// 직접 비교(`diff -r`)로 확인한다. manifest 자신과 INVENTORY_EXCLUDES는 목록에 넣지 않는다. mode는 git이 보존하는
+// 두 값(0644/0755)으로 기록만 하고 비교하지 않는다(실행 비트를 담지 못하는 파일 시스템이 있다). manifest_version 2.0.0.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const MANIFEST = "PACKAGE_MANIFEST.json";
-const MANIFEST_VERSION = "1.0.0";
+const MANIFEST_VERSION = "2.0.0";
 const PACKAGE_NAME = "wiki-desk";
 const INVENTORY_EXCLUDES = [MANIFEST, ".git", "node_modules", ".cache"];
 const EXEC_BITS = 0o111;
 const JSON_INDENT = 2;
 const DEFAULT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-type Entry = { path: string; bytes: number; mode: string; sha256: string };
+type Entry = { path: string; bytes: number; mode: string };
 type Manifest = { manifest_version: string; package: string; inventory_excludes: string[]; file_count: number; files: Entry[] };
 
 function inventory(root: string): string[] {
@@ -37,9 +37,9 @@ function inventory(root: string): string[] {
 export function build(root: string): Manifest {
   const files = inventory(root).map((rel): Entry => {
     const abs = path.join(root, rel);
-    const data = fs.readFileSync(abs);
-    const mode = (fs.statSync(abs).mode & EXEC_BITS) === 0 ? "0644" : "0755";
-    return { path: rel, bytes: data.length, mode, sha256: createHash("sha256").update(data).digest("hex") };
+    const stat = fs.statSync(abs);
+    const mode = (stat.mode & EXEC_BITS) === 0 ? "0644" : "0755";
+    return { path: rel, bytes: stat.size, mode };
   });
   return { manifest_version: MANIFEST_VERSION, package: PACKAGE_NAME, inventory_excludes: INVENTORY_EXCLUDES, file_count: files.length, files };
 }
@@ -48,8 +48,8 @@ export function build(root: string): Manifest {
 export function diff(root: string): string[] {
   const have = JSON.parse(fs.readFileSync(path.join(root, MANIFEST), "utf8")) as Manifest;
   const want = build(root);
-  const h = new Map(have.files.map((f) => [f.path, JSON.stringify(f)]));
-  const w = new Map(want.files.map((f) => [f.path, JSON.stringify(f)]));
+  const h = new Map(have.files.map((f) => [f.path, f.bytes]));
+  const w = new Map(want.files.map((f) => [f.path, f.bytes]));
   return [...new Set([...h.keys(), ...w.keys()])].filter((p) => h.get(p) !== w.get(p)).sort();
 }
 

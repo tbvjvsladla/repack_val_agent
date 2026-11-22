@@ -1,9 +1,9 @@
 ---
 name: anti-code-slop
-description: "대상 코드의 AI 코드 슬롭(억제 주석, 주석 처리된 코드, 예외 삼킴, 변명 주석, 타이머 우회, 산문 상투구 등)을 감사하고, 호출자가 준 허용 경로와 허용 수정 유형 안에서만 고친다. Python 표준 라이브러리 스캐너와 판정 스크립트가 COMPLETE 또는 INCOMPLETE를 종료 코드로 낸다. 슬롭 감사나 범위를 정한 클린코드 교정 요청에 사용한다."
+description: "대상 코드의 AI 코드 슬롭(억제 주석, 주석 처리된 코드, 예외 삼킴, 변명 주석, 타이머 우회, 파일 정합성을 해시로 확인하는 코드, 산문 상투구 등)을 감사하고, 호출자가 준 허용 경로와 허용 수정 유형 안에서만 고친다. Python 표준 라이브러리 스캐너와 판정 스크립트가 COMPLETE 또는 INCOMPLETE를 종료 코드로 낸다. 슬롭 감사나 범위를 정한 클린코드 교정 요청에 사용한다."
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
 ---
 
 # anti-code-slop
@@ -23,7 +23,7 @@ metadata:
 |---|---|---|
 | 대상 루트 | `--target` | 진행하지 않는다 |
 | 감사 범위 | `--scope` 또는 Git 대상의 `--base-ref` | 대상 전체 |
-| 수정 허용 경로 | `--allowed` | 감사만 한다. 대상 파일을 하나도 바꾸지 않는다 |
+| 수정 허용 경로 | `--allowed` (대상 안에 설치된 이 스킬 폴더와 겹치면 거부한다) | 감사만 한다. 대상 파일을 하나도 바꾸지 않는다 |
 | 허용 수정 유형 | `--fix-types` (`rules.json`의 `fix_type` 값) | 고칠 종류가 없다 |
 | 보호 경로 | `--protect` (허용 경로 안이라도 바이트가 그대로여야 하는 파일. 동작 검사가 의존하는 테스트와 검사 스크립트) | 없음 |
 | 동작 검사 | `--check '<명령>'`(여러 번) 또는 `--behavior-delegated '<사유>'` | 대상 파일을 바꾸면 `INCOMPLETE` |
@@ -33,7 +33,7 @@ metadata:
 
 검사 명령은 호출 인자로만 받는다. 대상 저장소 안의 파일에서 읽어 오지 않는다. 그 명령은 대상 루트에서 `bash -c`로 실행되므로, 실행 전에 내용을 읽고 호출자가 준 명령인지 확인한다. 테스트와 검사 스크립트는 허용 경로 밖에 두거나 `--protect`로 지정한다. 그래야 테스트를 약하게 고쳐 동작 보존을 넘기는 길이 막힌다.
 
-수정 유형: `lint-suppression`, `commented-code`, `swallowed-error`, `banner-comment`는 확정 신호를 가진 유형이다. `excuse-comment`, `constraint-comment`, `timer-workaround`, `prose`는 휴리스틱 신호만 있다. `prose`(글 다듬기)가 지정됐을 때만 글을 뜻을 보존하며 다시 쓴다.
+수정 유형: `lint-suppression`, `commented-code`, `swallowed-error`, `banner-comment`, `hash-integrity`는 확정 신호를 가진 유형이다(`hash-integrity`의 산문 신호는 휴리스틱이다. 아래 「무결성·일치 검증」). `excuse-comment`, `constraint-comment`, `timer-workaround`, `prose`는 휴리스틱 신호만 있다. `prose`(글 다듬기)가 지정됐을 때만 글을 뜻을 보존하며 다시 쓴다.
 
 ## 절차
 
@@ -55,6 +55,7 @@ metadata:
 
 4. **수정.** 허용 경로 안에서, 허용 수정 유형에 해당하는 것만 고친다. 항목마다 다시 묻지 않는다.
    - 가장 작은 근본 수정을 고른다. 증상 가드나 스캐너 회피 표현(`contextlib.suppress`, `except: None`, 억제 주석만 지우기)을 만들지 않는다. 억제를 지우면 그 억제가 숨기던 원인도 고친다.
+   - 파일이 그대로인지·같은지 확인하는 해시는 「무결성·일치 검증」의 순서대로 git이나 직접 비교로 바꾼다. 해시를 새로 만들지 않는다.
    - 구조 재설계, 대상에 린트·테스트 추가, 호환층 삭제는 하지 않고 제안(`proposals`)이나 `blocked`로 반환한다.
    - 제약 주석(`IMPORTANT`, `do not remove` 등)은 삭제 승인이 없으면 지우지 않고 `open_constraints`에 `blocked`(강제되지 않은 제약)로 적는다. 승인이 있으면 지우고 같은 원문을 `open_constraints`에 `accepted_unenforced`로 적는다.
    - 보호 주석(라이선스 헤더, 공개 API 문서 주석, 이슈·RFC 링크, `prettier-ignore`)은 지우지도 고치지도 않는다. 문서와 코드가 어긋나면 제안으로 보고한다.
@@ -75,7 +76,37 @@ metadata:
 
 8. **되돌림(필요할 때).** `restore --run-dir <run> [--files ...]`는 마지막 `verify`가 기록한 변경만 파일 단위로 되돌린다. 기록 뒤에 누가 또 고친 파일은 덮어쓰지 않고 거절한다. 스크립트가 대상에 쓰는 유일한 명령이다.
 
-`scan --target <대상> [--paths ...] --out <파일>`은 언제든 읽기 전용으로 돌릴 수 있다.
+`scan --target <대상> [--paths ...] --out <파일>`은 언제든 읽기 전용으로 돌릴 수 있다. 이 스킬이 대상 안(`.claude/skills/`·`.agents/skills/` 등)에 설치돼 있으면 스킬 폴더는 해시만 하고 스캔하지 않는다.
+
+## 무결성·일치 검증
+
+이 스킬은 해시를 주석과 같은 태도로 다룬다. 파일이 그대로인지(무결성), 둘이 같은지(일치)를 확인하려고 sha256 같은 digest를 만들어 적어 두고 다시 계산해 맞춰 보는 것은 슬롭이다. 신뢰를 더하지 않으면서 읽는 사람이 확인할 것만 늘린다. 기본 처분은 지우고 아래 수단으로 바꾸는 것이다. 위에서부터 차례로 검토한다.
+
+1. **git이 그 바이트를 들고 있으면 git으로 확인한다.**
+   - `git diff --quiet <기준> -- <경로>`, `git status --porcelain`, `git diff --stat <기준>`, `git rev-parse <ref>:<경로>`를 쓴다.
+   - git은 이미 객체 ID를 계산한다. 두 번째 digest를 만들지 않는다.
+   - "그대로였다"는 사실은 커밋이나 ref로 남긴다.
+2. **비교할 원본이 손에 있으면 직접 비교한다.**
+   - `cmp`, `diff`, Python `filecmp.cmp(a, b, shallow=False)`를 쓴다.
+   - 두 digest를 만들어 서로 견주지 않는다.
+3. **둘 다 쓸 수 없을 때만 해시를 최후의 수단으로 남긴다.** 처분 `justified_keep`의 예외는 아래 셋 가운데 하나다. `evidence`에는 왜 1·2를 쓸 수 없는지 적는다.
+
+   | 예외 | 뜻 | 예 |
+   |---|---|---|
+   | `last_resort` | git도 직접 비교도 그 바이트에 닿지 않는다 | 외부 다운로드를 발행자가 공개한 checksum과 대조, 원본을 둘 수 없는 비 git 대상 |
+   | `external_constraint` | 외부 규격이 digest를 요구한다 | 서명·HMAC 인증, lockfile·패키지 형식, 프로토콜이 정한 content address |
+   | `not_integrity` | 무결성·일치 확인에 쓰지 않는다 | 분산 키, 표시용 짧은 ID |
+
+- 코드의 해시 계산(`ANY-HASH-INTEGRITY`)은 확정 신호다.
+  - `hash-integrity`가 맡겨지면 위 예외와 근거가 없는 한 남길 수 없다.
+  - 맡겨지지 않았어도 교정이 해시를 새로 만들면 확정 신호가 늘어 V4로 `INCOMPLETE`다.
+- 문서에 digest를 근거로 적은 것(`PROSE-HASH-RECORD`)은 휴리스틱 신호다.
+  - 산문 검토자가 판정한다.
+  - `hash-integrity`가 맡겨졌으면 커밋·ref나 비교 명령으로 바꿔 쓴다.
+- 이 스킬 자신의 해시
+  - `snapshot`·`verify`·`restore`는 대상 파일의 sha256을 잰다. git이 없는 대상과, git이 기록하지 않는 미추적·무시 파일의 변경까지 같은 기준으로 잡아야 하기 때문이다. 이것은 3의 `last_resort`에 해당한다.
+  - 신호 ID에 쓰는 sha1 앞 10자는 이름일 뿐이라 `not_integrity`다.
+  - git 대상에서 git으로 대신하는 일은 후속 과제다.
 
 ## 판정 기준
 

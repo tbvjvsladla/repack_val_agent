@@ -13,7 +13,11 @@
 
 - `gate run <group>`의 조건: gate가 `pending`이나 `failed`다. 취소되지 않은 구성원이 하나 이상이고 모두 `open`이며 `change`가 `done`이다. 아니면 거절한다(종료 1).
 - gate를 돌리기 전에 대상의 변경을 커밋한다. 커밋되지 않은 입력으로 돌린 결과는 다시 쓸 수 없다(아래 규칙 1).
-- gate가 통과하면 그때의 구성원을 gate 기록에 적고, 검토 표시가 없는 구성원을 닫는다. 검토 표시가 있는 구성원은 새 맥락 검토 뒤에 `cell close`로 닫는다.
+- gate가 통과하면 그때의 구성원을 gate 기록에 적고 구성원을 닫는다. 닫히는 구성원은 둘이다.
+  - 검토 표시가 없는 구성원
+  - 서 있는 검토가 clean이거나 사람이 받아들인 구성원. 서 있는 검토는 그 cell이 마지막으로 바뀐 뒤에 기록한 검토다.
+
+  나머지 표시 있는 구성원은 검토 뒤에 `cell close`로 닫는다.
 - `passed`인 gate는 `gate reopen` 없이 다시 돌리지 않는다.
 - 같은 gate를 두 곳에서 동시에 돌리지 않는다. 실행기가 두 번째 실행을 거절한다. 실행 중인 gate는 사람에게 넘길 수 없다.
 - gate가 도는 동안 구성원이 다시 열려 고쳐졌으면 그 실행은 통과로 치지 않는다(`pending`). 다시 돌린다.
@@ -82,9 +86,9 @@
 | 상태 | 뜻 | 들어오는 길 | 나가는 길 |
 |---|---|---|---|
 | `open` | 진행 중 | 처음, `cell add`, `cell reopen`, `gate reopen`, `cell resume`, `hitl answer` | 아래 넷 |
-| `closed` | 닫힘 | gate 통과(검토 표시 없음), `cell close`(검토 표시 있음) | `gate reopen`, `cell reopen` |
+| `closed` | 닫힘 | gate 통과(검토 표시 없음, 또는 서 있는 검토가 clean이거나 받아들임), `cell close`(검토 표시 있음) | `gate reopen`, `cell reopen` |
 | `cancelled` | 취소됨 | `cell cancel` | 없음 |
-| `stopped` | 사람에게 넘김(정체, 검토 상한) | `cell stop`, `review record`(상한 회차에도 차단 지적이 남음) | `cell resume`(사용자 승인) |
+| `stopped` | 사람에게 넘김(정체, 검토 상한) | `cell stop`, `review record`(상한 회차에도 차단 지적이 남음) | `cell resume`(사용자 승인), `cell close --accept-ref`(사람이 남은 차단을 받아들임) |
 | `waiting` | 사람의 답을 기다림 | `hitl open --cell` | `hitl answer` |
 
 **gate**
@@ -116,8 +120,22 @@
 **그 밖의 규칙**
 
 - `phase start`: cell이 `open`이고 앞 단계가 `done`이다. `change`를 시작할 때 `needs`의 cell이 같은 묶음이면 그 `change`가 `done`, 다른 묶음이면 그 묶음의 gate가 `passed`여야 한다. 취소된 cell에 대한 `needs`는 채워진 것으로 본다.
-- `gate reopen`: gate를 `pending`으로, 닫힌 구성원을 `open`으로 돌린다. 단계의 상태는 그대로다. 다시 `gate run`하면 닫힌다.
+- `gate reopen`: gate를 `pending`으로, 닫힌 구성원을 `open`으로 돌린다. 단계의 상태는 그대로다. 다시 `gate run`하면 닫힌다. 검토 표시가 있는 구성원도 서 있는 검토가 clean이거나 받아들인 것이면 다시 검토하지 않고 닫힌다.
 - `cell reopen`: `change`가 `done`인 cell의 `change`를 `pending`으로 돌린다. gate가 `passed`나 `failed`면 `gate reopen`과 같은 일을 한다. 커밋은 건드리지 않는다.
 - 통과한 묶음에 구성원이 들어오거나 나가면 gate가 다시 열린다. `closed`인 cell은 옮길 수 없다.
-- `cell close`: 검토 표시가 있고, cell이 `open`이며, gate가 `passed`이고, 마지막 gate 통과보다 뒤의 가장 늦은 검토가 실행됐고 `clean`이다.
-- `review record`: 회차가 상한 이상이고 차단 지적이 남았으면 그 cell이 `stopped`가 된다.
+- `cell close`: 조건마다 거절 코드가 다르다.
+  - 검토 표시가 없으면 `cell-not-marked`로 거절한다.
+  - cell이 `open`이 아니거나 gate가 `passed`가 아니면 `conditions-unmet`로 거절한다.
+  - 서 있는 검토가 clean도 아니고 받아들인 것도 아니면 `no-standing-clean-review`로 거절한다. 출력의 `standing`에 none·not-run·blocking 가운데 무엇인지 적는다.
+  - 서 있는 검토는 모든 단계가 `done`인 상태의 가장 늦은 `ended` 뒤에 기록한 가장 늦은 검토다.
+- `cell close --accept-ref <근거>`: 서 있는 검토에 차단이 있는데 사람이 그것을 받아들였을 때 쓴다.
+  - cell은 `open`이나 `stopped`여야 한다.
+  - `review-accept` 사건에 `accepted_ref`, `round`, `residual`을 남긴다. 그 뒤로 그 검토는 받아들인 것으로 선다.
+  - gate가 `passed`면 바로 닫는다(`cell-close`에 같은 필드). 아니면 cell을 `open`으로 돌리고, gate가 통과할 때 닫힌다.
+  - 서 있는 검토가 차단이 아니면 `nothing-to-accept`로 거절한다.
+- `review record`: 필요한 회차만 받는다. 다음 경우에는 거절한다.
+  - 단계가 끝나지 않았다(`cell-not-settled`).
+  - 서 있는 검토가 clean이거나 받아들인 것이다(`review-not-needed`).
+  - 서 있는 검토에 차단이 있는데 cell을 고치지 않았다(`fix-first`).
+
+  검토자가 실행되지 않은 회차(`ran` false) 뒤에는 다시 받는다. 회차가 상한 이상이고 차단 지적이 남았으면 그 cell이 `stopped`가 된다.

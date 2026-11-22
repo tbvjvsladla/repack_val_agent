@@ -194,7 +194,7 @@ skills/<skill>/config.yaml    provider: anthropic
 | `envs/` | 스킬이 쓰는 API 키와 Judge 프로필(로컬 전용). 예시만 추적 |
 | `skill-activation.yaml`, `scripts/skill_activation.py` | 선택 수단의 활성화 knob(공유 기본값)과 링크 동기화·검사·캠페인별 켜기·끄기. 로컬 값은 `skill-activation.local.yaml` |
 | [__llm-wiki/](__llm-wiki/) | 로컬 포인터 위키를 만들 계약·용어집 |
-| [repack_target/](repack_target/README.md) | 로컬 개선 대상과 최종 산출물을 준비할 공간. 사용 지침만 추적 |
+| [repack_target/](repack_target/README.md) | 로컬 개선 대상, 외부 배포 패키지와 최종 산출물을 준비할 공간. 사용 지침만 추적 |
 | [PUBLICATION.md](PUBLICATION.md) | 공개 범위와 공개본 생성 절차 |
 
 ## 시작하기

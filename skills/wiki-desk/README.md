@@ -18,6 +18,7 @@
 - **카드 키 변경(breaking)**: 원문 frontmatter 보존 키가 2.0.0의 프로젝트 전용 namespace 키(번호 접두 키와 그 `_unknown` 짝)에서 프로젝트 중립 이름 `source_meta`/`source_meta_unknown`으로 바뀌었습니다. 호환 분기는 두지 않았으므로 2.0.0으로 만든 카드는 3.0.0에서 `card.invalid`로 보고됩니다.
 - **배포 위생**: 특정 프로젝트 식별자를 코드·문서·시험에서 제거했고, `scripts/sanitize-check.ts`(사이트명·개인 경로·사설 IP·프로젝트 식별자 0건)와 `PACKAGE_MANIFEST.json`(파일별 sha256)을 추가했습니다. 예제 계약은 합성 예시입니다.
 - **2.0.0 설치본 이행**: 스킬 폴더를 3.0.0으로 교체한 뒤 `remove --apply` → `sync --apply`로 카드를 다시 만듭니다. `remove`는 사람이 고친 카드·`contract.json`을 보존하므로, 남은 카드에 이전 키가 있으면 수정분을 옮긴 뒤 직접 지우고 다시 sync합니다.
+- **이후 조정(2026-11-22)**: 이 설치본의 `PACKAGE_MANIFEST.json`에서 digest를 뺐습니다(manifest_version 2.0.0, 파일 목록·크기만). 설치본 내용은 git이나 받은 폴더와의 `diff -r`로 확인합니다([설치](references/installation.md) 2단계).
 
 ## 해결하려는 문제 — "아마 그렇게 결정했을 것"과 "이 문서 41~58줄에 그렇게 적혀 있다"는 다릅니다
 
@@ -111,7 +112,7 @@ node skills/wiki-desk/src/cli.ts sync --apply                                 # 
 node skills/wiki-desk/src/cli.ts check                                        # OKF 0.2 MUST·누락·고아·stale
 ```
 
-위키(`__llm-wiki/`·`__llm_wiki/` 어느 쪽이든)가 이미 있으면 `init`은 거부합니다. 적용 뒤 Git diff 또는 원문 파일의 실행 전후 해시로 원문 불변을 확인하세요.
+위키(`__llm-wiki/`·`__llm_wiki/` 어느 쪽이든)가 이미 있으면 `init`은 거부합니다. 적용 뒤 Git diff로, Git이 없으면 실행 전에 복사해 둔 원문과의 `diff -r`로 원문 불변을 확인하세요.
 
 ## 실제 작업 여정 — 질의 → 원문 읽기 → 입고
 
