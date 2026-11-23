@@ -12,18 +12,15 @@
 - S4 호출자가 하나뿐인 래퍼, 영구화된 임시 어댑터, 호환층이 있는가. 이것은 `propose`로만 낸다. 호출자 이전과 레거시 삭제는 이 스킬의 수정 범위가 아니다.
 - S5 이름·타입·경계가 나빠 긴 설명이 있어야 이해되는가. 독자가 한 번에 기억해야 할 개념이 많은가.
 - S6 테스트나 검증 코드가 공개 동작 대신 존재·구현만 확인하는가(파일이 생겼다, 프로세스가 떴다). 완료를 그 대리 지표로 주장하는가.
-- S7 파일이 그대로인지·같은지 확인하려고 해시(sha256 등)를 만들어 비교하는가.
-  - git(`git diff --quiet`, `git status --porcelain`, `git rev-parse`)이나 직접 비교(`cmp`, `filecmp.cmp(shallow=False)`)로 바꿀 수 있으면 `fix`다.
-  - 바꿀 수 없으면 `last_resort`·`external_constraint`·`not_integrity` 가운데 무엇인지와 그 근거를 적는다. 근거 없이 `keep`을 내지 않는다.
-  - 판단 순서는 [SKILL.md](../SKILL.md) 「무결성·일치 검증」이다.
-- D1(수정 후 diff) 수정이 새 증상 가드나 스캐너 회피 표현(`contextlib.suppress`, `except: None`, `catch (e) { void e }`, 억제 주석만 삭제)을 만들었는가. 맡지 않은 종류를 건드렸는가. 해시를 새로 만들었는가. 동작을 바꿨는가.
+- S7 (빈자리) 해시로 파일이 그대로인지·같은지 확인하는 코드는 무결성 검토자가 판정한다([integrity-review.md](integrity-review.md)). 이 검토자는 `hash-integrity` 신호에 판정을 내지 않는다.
+- D1(수정 후 diff) 수정이 새 증상 가드나 스캐너 회피 표현(`contextlib.suppress`, `except: None`, `catch (e) { void e }`, 억제 주석만 삭제)을 만들었는가. 맡지 않은 종류를 건드렸는가. 해시를 새로 만들었는가([integrity-review.md](integrity-review.md) 규칙 5). 동작을 바꿨는가.
 
 ## 수정 우선순위
 
 제안할 때는 문제를 없애는 가장 작은 수단부터 고른다. 새 추상화는 기본값이 아니다.
 
 1. 죽은 경로, 미사용 매개변수, 불필요한 호출 삭제
-2. 프레임워크가 이미 제공하는 실제 API 사용(무결성·일치 확인은 새 해시가 아니라 git과 직접 비교)
+2. 프레임워크가 이미 제공하는 실제 API 사용(무결성·일치 확인은 [integrity-review.md](integrity-review.md) 규칙 2·3)
 3. 의도가 드러나는 이름과 함수 추출
 4. 잘못된 상태를 표현할 수 없는 타입·스키마
 5. 모듈·소유권 경계 수정
@@ -43,7 +40,7 @@ JSON 하나. 수정 전 검토는 `reviews/structure.json`, 수정 후 검토는
   "role": "structure",
   "independent": true,
   "items": [{"signal": "<신호 ID>", "verdict": "fix|keep|propose|blocked", "reason": "<근거>"}],
-  "findings": [{"file": "<파일>", "line": 0, "note": "<S1~S7 중 무엇이고 왜인가>"}],
+  "findings": [{"file": "<파일>", "line": 0, "note": "<S1~S6 중 무엇이고 왜인가>"}],
   "proposals": [{"removes": "", "owner": "", "failure_signal": "", "applies_to": ""}]
 }
 ```

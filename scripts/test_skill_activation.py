@@ -43,8 +43,11 @@ class Root:
         (self.path / "campaigns" / "c1").mkdir(parents=True)
         (self.path / "campaigns" / "c2").mkdir(parents=True)
 
-    def run(self, *args: str) -> tuple[int, dict]:
+    def run(self, *args: str, codex_home: Path | None = None) -> tuple[int, dict]:
         env = {**os.environ, "HOME": str(self.home)}
+        env.pop("CODEX_HOME", None)
+        if codex_home is not None:
+            env["CODEX_HOME"] = str(codex_home)
         proc = subprocess.run([sys.executable, "-B", str(SCRIPT), "--root", str(self.path), *args],
                               capture_output=True, text=True, env=env)
         return proc.returncode, json.loads(proc.stdout)
@@ -120,6 +123,22 @@ class SkillActivation(unittest.TestCase):
         self.assertTrue(any("[mcp_servers.betasrv]" in p for p in out["problems"]))
         (self.root.path / ".codex/config.toml").unlink()
         self.assertEqual(self.root.run("check")[0], 0)
+
+    def test_check_uses_codex_home_instead_of_default_user_config(self):
+        self.root.run("sync", "--apply")
+        config_text = '[mcp_servers.betasrv]\ncommand = "x"\n'
+        default_dir = self.root.home / ".codex"
+        default_dir.mkdir()
+        (default_dir / "config.toml").write_text(config_text, encoding="utf-8")
+        self.assertEqual(self.root.run("check")[0], 1)
+
+        custom_dir = self.root.home / "custom codex"
+        custom_dir.mkdir()
+        self.assertEqual(self.root.run("check", codex_home=custom_dir)[0], 0)
+        (custom_dir / "config.toml").write_text(config_text, encoding="utf-8")
+        code, out = self.root.run("check", codex_home=custom_dir)
+        self.assertEqual(code, 1)
+        self.assertIn("delete the [mcp_servers.betasrv] table from $CODEX_HOME/config.toml", out["problems"][0])
 
     def test_enable_prints_mcp_register_and_setup(self):
         code, out = self.root.run("enable", "beta", "--apply")

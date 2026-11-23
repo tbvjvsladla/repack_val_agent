@@ -39,7 +39,7 @@
 
 ## 해시 기록
 
-`PROSE-HASH-RECORD`는 문서가 sha 낱말이나 64자리 16진 digest를 근거로 적은 줄이다. 파일이 그대로라는 근거를 digest로 남겼다면 슬롭이다. 커밋·ref(`git rev-parse`)나 다시 확인할 비교 명령(`git diff --quiet <기준> -- <경로>`, `cmp`)으로 바꿔 쓰자고 판정한다. 외부 발행자의 checksum을 옮겨 적은 것처럼 [SKILL.md](../SKILL.md) 「무결성·일치 검증」의 예외에 해당하면 그 근거를 적고 `keep`한다.
+`PROSE-HASH-RECORD`는 무결성 검토자가 판정한다([integrity-review.md](integrity-review.md) 규칙 6). 이 검토자는 그 신호에 판정을 내지 않는다.
 
 ## 출력
 

@@ -22,6 +22,9 @@ test_signal_id_stable_and_context_bound test_unchecked_language_reported test_ex
 test_fixture_checks_leave_hashes_unchanged test_judge_on_good_workspace test_variants
 test_allowed_covering_installed_skill_refused test_installed_skill_edit_fails_v1 test_skill_folder_as_target_allowed
 test_hash_integrity_kept_only_with_exception test_hash_integrity_fix_by_direct_comparison test_new_hash_in_a_fix_fails
+test_integrity_review_required_for_hash_signal test_integrity_review_required_for_new_hash_signal
+test_integrity_review_not_required_without_hash_signal
+test_reviewer_declarations_consistent test_skill_md_lists_every_fix_type
 """.split()
 
 LINE = re.compile(r"^(test_\w+) \([\w.]+\)(?: \([^)]*\))? \.\.\. (.+)$")

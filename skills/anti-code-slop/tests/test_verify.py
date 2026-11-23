@@ -176,6 +176,8 @@ class Judgment(Base):
 class HashIntegrity(Base):
     files = {"app/mod.py": "import hashlib\n\n\ndef same(a, b):\n    return hashlib.sha256(a).digest() == hashlib.sha256(b).digest()\n"}
 
+    roles = ("comment", "structure", "integrity", "diff")
+
     def hash_signal(self):
         return next(s for s in json.loads((self.run_dir / "scan_before.json").read_text())["signals"]
                     if s["rule"] == "ANY-HASH-INTEGRITY")
@@ -183,15 +185,15 @@ class HashIntegrity(Base):
     def test_hash_integrity_kept_only_with_exception(self):
         self.snapshot("--check", "true", fix_types=("hash-integrity",))
         sig = self.hash_signal()
-        basic_report(self.run_dir)
+        basic_report(self.run_dir, roles=self.roles)
         code, v = self.verify()
         self.assertEqual((code, v["items"]["V3"]["status"]), (1, "FAIL"))
-        keep = {"signal": sig["id"], "status": "justified_keep", "evidence": "e", "proposed_by": "structure",
+        keep = {"signal": sig["id"], "status": "justified_keep", "evidence": "e", "proposed_by": "integrity",
                 "accepted_by": "main"}
-        basic_report(self.run_dir, dispositions=[{**keep, "exception": "allowed_suppression"}])
+        basic_report(self.run_dir, roles=self.roles, dispositions=[{**keep, "exception": "allowed_suppression"}])
         code, v = self.verify()
         self.assertEqual((code, v["items"]["V8"]["status"]), (1, "FAIL"))
-        basic_report(self.run_dir, dispositions=[{**keep, "exception": "last_resort",
+        basic_report(self.run_dir, roles=self.roles, dispositions=[{**keep, "exception": "last_resort",
                                                   "evidence": "no git and no original copy beside the target"}])
         code, v = self.verify()
         self.assertEqual(code, 0, v["items"])
@@ -199,7 +201,7 @@ class HashIntegrity(Base):
     def test_hash_integrity_fix_by_direct_comparison(self):
         self.snapshot("--check", "true", fix_types=("hash-integrity",))
         self.edit(text="import filecmp\n\n\ndef same(a, b):\n    return filecmp.cmp(a, b, shallow=False)\n")
-        basic_report(self.run_dir)
+        basic_report(self.run_dir, roles=self.roles)
         code, v = self.verify()
         self.assertEqual(code, 0, v["items"])
 
@@ -211,6 +213,36 @@ class HashIntegrity(Base):
         basic_report(self.run_dir)
         code, v = self.verify()
         self.assertEqual((code, v["items"]["V4"]["status"]), (1, "FAIL"))
+
+    def test_integrity_review_required_for_hash_signal(self):
+        self.snapshot("--check", "true", fix_types=("hash-integrity",))
+        self.edit(text="import filecmp\n\n\ndef same(a, b):\n    return filecmp.cmp(a, b, shallow=False)\n")
+        basic_report(self.run_dir)
+        code, v = self.verify()
+        self.assertEqual((code, v["items"]["V6"]["status"]), (1, "FAIL"))
+        self.assertIn("reviews/integrity.json", " ".join(v["items"]["V6"]["reasons"]))
+        basic_report(self.run_dir, roles=self.roles)
+        code, v = self.verify()
+        self.assertEqual((code, v["items"]["V6"]["status"]), (0, "PASS"), v["items"])
+
+    def test_integrity_review_required_for_new_hash_signal(self):
+        self.files = {"app/mod.py": "value = 1\n", "docs/note.md": "Use the ledger.\n"}
+        self.target = small_target(self.tmp / "plain", self.files)
+        self.snapshot("--check", "true", allowed=("app", "docs"), fix_types=("prose",))
+        self.edit("docs/note.md", "The archive is intact: sha256 matched.\n")
+        report = {"verdicts": [{"rule_id": "PROSE-HASH-RECORD", "file": "docs/note.md", "verdict": "fix", "reason": "r"}]}
+        basic_report(self.run_dir, roles=("comment", "structure", "prose", "diff"), **report)
+        code, v = self.verify()
+        self.assertEqual((code, v["items"]["V6"]["status"]), (1, "FAIL"))
+        self.assertIn("reviews/integrity.json", " ".join(v["items"]["V6"]["reasons"]))
+
+    def test_integrity_review_not_required_without_hash_signal(self):
+        self.files = {"app/mod.py": "import filecmp\n\n\ndef same(a, b):\n    return filecmp.cmp(a, b, shallow=False)\n"}
+        self.target = small_target(self.tmp / "plain", self.files)
+        self.snapshot("--check", "true", fix_types=("hash-integrity",))
+        basic_report(self.run_dir, roles=("comment", "structure"))
+        code, v = self.verify()
+        self.assertEqual((code, v["items"]["V6"]["status"]), (0, "PASS"), v["items"])
 
 
 class Groups(Base):

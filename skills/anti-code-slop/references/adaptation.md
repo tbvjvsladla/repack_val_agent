@@ -18,6 +18,8 @@
 |---|---|---|
 | unlazy(Leonxlnx) | MIT | 완료를 명령의 종료 코드로 판정하는 방식, 양성·음성 대조군으로 판정기를 시험하는 방식 |
 | pr-review-toolkit | Apache-2.0 | 관점별 읽기 전용 검토자와 메인의 검수 구조 |
+| pstack-ko(pstack 한국어 번역본) 구조 | MIT | 1.2.0의 계층화. `unslop`처럼 규칙에 고유 번호를 붙여 다른 지침이 번호로 인용하고, `typescript-best-practices`처럼 SKILL.md에는 표만 두고 기준은 references에 두고, `no-comments`·`comment-sicko`처럼 절차와 검토자 지침을 나눈다. 무결성 검토자(`integrity-review.md`)와 규칙표의 `reviewers` 선언이 그 결과다 |
+| Anthropic 「Skill authoring best practices」, 「Effective context engineering for AI agents」 | 공개 문서 | SKILL.md는 목차 같은 개요로 두고, 참조는 한 단계 깊이로, 흔들리면 안 되는 판단은 스크립트로 둔다 |
 
 ## 새로 만든 것
 

@@ -23,7 +23,7 @@ SKILL_DIR = Path(__file__).resolve().parents[1]
 REPO_DIR = Path(__file__).resolve().parents[3]
 OUTPUT_TAIL = 64 * 1024
 VERDICTS = {"fix", "keep", "propose", "blocked"}
-ROLES = {"comment", "structure", "prose", "diff"}
+REVIEW_WHEN = {"always", "prose_files", "fix_type", "changed"}
 OPEN_STATUSES = {"blocked", "accepted_unenforced", "out_of_scope"}
 PROPOSAL_FIELDS = ("removes", "owner", "failure_signal", "applies_to")
 
@@ -287,7 +287,32 @@ def _changes(before: dict, after: dict) -> dict:
             "after": {p: after[p] for p in added + modified}}
 
 
-def _validate_report(report, signals_by_id, exceptions_map) -> list[str]:
+def load_reviewers(rules_data) -> list[dict]:
+    """The reviewer roles and when each is required, as declared in rules.json `reviewers`."""
+    reviewers = rules_data.get("reviewers")
+    if not isinstance(reviewers, list) or not reviewers:
+        raise UsageError("rules.json declares no reviewers")
+    for r in reviewers:
+        if not isinstance(r, dict) or not isinstance(r.get("role"), str) or r.get("when") not in REVIEW_WHEN:
+            raise UsageError(f"bad reviewer declaration in rules.json: {r}")
+        if r["when"] == "fix_type" and not (isinstance(r.get("fix_types"), list) and r["fix_types"]):
+            raise UsageError(f"reviewer {r['role']} needs fix_types: {r}")
+    return reviewers
+
+
+def needed_reviews(reviewers, before_scan, after_scan, changed) -> list[str]:
+    has_prose = any(lang == "prose" for lang in before_scan["files"]["checked"].values())
+    seen_fix_types = {s["fix_type"] for s in before_scan["signals"] + after_scan["signals"]}
+    needed = []
+    for r in reviewers:
+        when = r["when"]
+        if when == "always" or (when == "prose_files" and has_prose) or (when == "changed" and changed) \
+                or (when == "fix_type" and seen_fix_types & set(r["fix_types"])):
+            needed.append(r["role"])
+    return needed
+
+
+def _validate_report(report, signals_by_id, exceptions_map, roles) -> list[str]:
     problems = []
     if not isinstance(report, dict):
         return ["report.json is not an object"]
@@ -297,7 +322,7 @@ def _validate_report(report, signals_by_id, exceptions_map) -> list[str]:
         if not isinstance(report.get(key), list):
             problems.append(f"{key} must be present as a list")
     for r in report.get("reviewers", []):
-        if not isinstance(r, dict) or r.get("role") not in ROLES or not isinstance(r.get("independent"), bool):
+        if not isinstance(r, dict) or r.get("role") not in roles or not isinstance(r.get("independent"), bool):
             problems.append(f"bad reviewer entry: {r}")
     for v in report.get("verdicts", []):
         if not isinstance(v, dict):
@@ -323,7 +348,7 @@ def _validate_report(report, signals_by_id, exceptions_map) -> list[str]:
                     problems.append(f"justified_keep needs {field}: {d['signal']}")
             if d.get("accepted_by") not in (None, "main") and isinstance(d.get("accepted_by"), str):
                 problems.append(f"accepted_by must be main: {d['signal']}")
-            if isinstance(d.get("proposed_by"), str) and d["proposed_by"] not in ROLES:
+            if isinstance(d.get("proposed_by"), str) and d["proposed_by"] not in roles:
                 problems.append(f"proposed_by must be a reviewer role: {d['signal']}")
             sig = signals_by_id.get(d["signal"])
             if sig is not None:
@@ -370,6 +395,7 @@ def cmd_verify(args) -> int:
     rules = sc.load_rules()
     rules_data = read_json(sc.RULES_PATH)
     exceptions_map = rules_data["disposition_exceptions"]
+    reviewers = load_reviewers(rules_data)
     allowed, protect, fix_types = run["allowed"], run["protect"], set(run["fix_types"])
     scope = run["scope"]
 
@@ -520,12 +546,7 @@ def cmd_verify(args) -> int:
     # V6 reviews ran
     v6 = []
     reviews = run_dir / "reviews"
-    needed = ["comment", "structure"]
-    if any(lang == "prose" for lang in before_scan["files"]["checked"].values()):
-        needed.append("prose")
-    if changed:
-        needed.append("diff")
-    for role in needed:
+    for role in needed_reviews(reviewers, before_scan, after_scan, changed):
         path = reviews / f"{role}.json"
         if not path.exists():
             v6.append(f"review record missing: reviews/{role}.json")
@@ -571,7 +592,7 @@ def cmd_verify(args) -> int:
         v8.append(report_error)
     else:
         all_signals = {s["id"]: s for s in before_scan["signals"] + after_scan["signals"]}
-        v8.extend(_validate_report(report, all_signals, exceptions_map))
+        v8.extend(_validate_report(report, all_signals, exceptions_map, {r["role"] for r in reviewers}))
     item("V8", v8)
 
     complete = all(i["status"] != "FAIL" for i in items.values())

@@ -119,7 +119,10 @@ def validate_identity(identity: dict, workspace: Path, provider: str,
 
 
 def main() -> int:
-    config = json.loads((SKILL / "config.json").read_text())
+    try:
+        config = json.loads((SKILL / "config.json").read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        config = json.loads((SKILL / "config.example.json").read_text(encoding="utf-8"))
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--provider", choices=["claude", "codex"], default=config["default_provider"])
     connected = config.get("workspace")
@@ -134,7 +137,7 @@ def main() -> int:
     if args.provider != "codex" and args.codex_permissions != "read-only":
         parser.error("--codex-permissions is only applicable to --provider codex")
     if args.workspace is None:
-        parser.error("no worker is connected: config.json workspace is null; set it or pass --workspace")
+        parser.error("no worker is connected: set workspace in config.json or pass --workspace")
     workspace = args.workspace.resolve()
     output = args.output_dir.resolve()
     if output == workspace or workspace in output.parents:

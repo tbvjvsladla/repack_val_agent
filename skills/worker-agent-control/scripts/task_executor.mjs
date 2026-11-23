@@ -23,6 +23,9 @@ export const CAPACITY_MESSAGES = [CAPACITY, CAPACITY.replace(/\.$/, '')];
 export const RESUME_REMINDER =
   'Resume this same task. Inspect saved progress and any running command before acting; ' +
   'continue only unfinished work without repeating completed external effects.\n\n';
+/** The marker a headless worker puts on ONE line of its final message to stop and ask a person (the caller relays it; nothing here answers it). */
+export const QUESTION_STATUS = 'input-required';
+const ANSWER_KEYS = ['question_id', 'question', 'answer', 'answered_utc', 'source'];
 
 const FORBIDDEN_TOKENS = new Set([
   '--last', '--dangerously-skip-permissions', '--dangerously-bypass-approvals-and-sandbox',
@@ -264,6 +267,7 @@ export function observeCodex(text, code, expectedSession) {
   const active = new Set();
   let failed = false;
   let completed = false;
+  let lastMessage = null;
   const empty = (outcome, session) => ({ outcome, session, primary: [], usage_models: [], child_models: [], errors: [], format: 'codex-jsonl' });
   try {
     for (const line of text.split('\n')) {
@@ -291,7 +295,10 @@ export function observeCodex(text, code, expectedSession) {
           const id = event.item && typeof event.item === 'object' ? event.item.id : null;
           if (typeof id !== 'string' || id === '') throw new Error('item lifecycle has no identity');
           if (event.type === 'item.started') active.add(id);
-          else active.delete(id);
+          else {
+            active.delete(id);
+            if (event.item.type === 'agent_message' && typeof event.item.text === 'string') lastMessage = event.item.text;
+          }
           break;
         }
         default:
@@ -309,7 +316,7 @@ export function observeCodex(text, code, expectedSession) {
   else if (code === 1 && failed && !completed && errors.length && errors.every((e) => CAPACITY_MESSAGES.includes(e))) outcome = 'capacity';
   else if (code === 0 && completed && !failed && errors.length === 0) outcome = 'native_success';
   else outcome = 'native_failure';
-  return { outcome, session: distinct[0], primary, usage_models: [], child_models: [], errors, format: 'codex-jsonl' };
+  return { outcome, session: distinct[0], primary, usage_models: [], child_models: [], errors, format: 'codex-jsonl', final_text: lastMessage, denials: null };
 }
 
 /** One JSON object (the `--output-format json` wrapper) or JSONL (`--output-format stream-json`); null when neither parses. */
@@ -373,14 +380,101 @@ export function observeClaude(text, code, expectedSession) {
   const session = [...sessions][0];
   const errorsKey = 'errors' in result;
   const errors = Array.isArray(result.errors) ? result.errors : [];
-  const final = (outcome) => ({ ...base, outcome, session, errors });
-  if (Array.isArray(result.permission_denials) && result.permission_denials.length) return final('permission_denied');
+  const denials = Array.isArray(result.permission_denials) ? result.permission_denials : [];
+  const finalText = typeof result.result === 'string' ? result.result : null;
+  const final = (outcome) => ({ ...base, outcome, session, errors, denials, final_text: finalText });
+  const hasResult = (typeof result.result === 'string' && result.result.trim() !== '') || result.structured_output != null;
+  const nominal = code === 0 && result.subtype === 'success' && result.is_error === false && !errors.length && !(errorsKey && !Array.isArray(result.errors)) && hasResult;
+  // a denial is an EVENT: a run that still returned a nominal success keeps the denials on record; otherwise the denial is the failure
+  if (denials.length) return final(nominal ? 'native_success' : 'permission_denied');
   if (result.subtype === 'error_max_turns') return final('budget_exhausted');
   if (errorsKey && !Array.isArray(result.errors)) return final('invalid_events');
   if (result.is_error !== false || (typeof result.subtype === 'string' && result.subtype.startsWith('error'))) return final('native_error');
   if (errors.length) return final('native_error');
-  const hasResult = (typeof result.result === 'string' && result.result.trim() !== '') || result.structured_output != null;
-  return final(code === 0 && result.subtype === 'success' && hasResult ? 'native_success' : 'native_failure');
+  return final(nominal ? 'native_success' : 'native_failure');
+}
+
+/**
+ * The worker's own stop-and-ask line, read FAIL-CLOSED: a worker question must never silently become a terminal success.
+ * - A JSON-object line is a question attempt when its `worker_status` normalises (letters only, case-folded) to `inputrequired`, or when it carries
+ *   both `worker_status` and a `question` object. Other `worker_status` lines (e.g. `completed`) are not questions.
+ * - A line whose question id or prompt is a `<...>` placeholder is a quoted template and ignored, unless it is the last line (then it is invalid).
+ * - One attempt that is exact (`worker_status` spelled `input-required`, `question` with exactly id/prompt/blocking) on the last non-empty line (a single
+ *   closing ``` fence line after it is tolerated) is `{ question }`. Anything else that looks like an attempt is `{ invalid }`.
+ * - Tripwire: any remaining text that mentions a worker_status of input-required (any quoting, spacing, separator or
+ *   case, fenced, prefixed or pretty-printed) is `{ invalid }`, never success. Plain prose without that marker is not a question.
+ */
+export function parseQuestion(text) {
+  if (typeof text !== 'string') return null;
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  let lastIndex = lines.length - 1;
+  if (lastIndex > 0 && lines[lastIndex] === '```') lastIndex -= 1;
+  const placeholder = (v) => typeof v === 'string' && /^<.*>$/.test(v.trim());
+  const recognizedLines = new Set();
+  const attempts = [];
+  lines.forEach((line, index) => {
+    if (!line.startsWith('{') || !line.endsWith('}')) return;
+    let value;
+    try { value = JSON.parse(line); } catch { return; }
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+    // status key variants (workerStatus, worker-status, status beside a question) and a bare question object all count as attempts
+    const statusKey = Object.keys(value).find((k) => /^worker[\W_]*status$/i.test(k)) ?? ('status' in value && 'question' in value ? 'status' : null);
+    const q = value.question;
+    const hasQuestion = q && typeof q === 'object' && !Array.isArray(q);
+    const statusLike = statusKey !== null && String(value[statusKey]).toLowerCase().replace(/[^a-z]/g, '') === 'inputrequired';
+    if (!statusLike && !(hasQuestion && (statusKey !== null || 'prompt' in q))) return;
+    recognizedLines.add(index);
+    if (hasQuestion && placeholder(q.id) && placeholder(q.prompt) && index !== lastIndex) return;
+    attempts.push({ value, index, statusKey });
+  });
+  if (attempts.length > 1) return { invalid: 'more than one question line: ask one question at a time' };
+  const remaining = lines.filter((_, index) => !recognizedLines.has(index)).join('\n');
+  if (/worker[\W_]*status["'`]?\s*[:=]\s*["'`]?\s*input[\W_]*required/i.test(remaining)) {
+    return { invalid: 'an input-required marker appears outside the single allowed question line' };
+  }
+  if (!attempts.length) return null;
+  const [{ value, index, statusKey }] = attempts;
+  if (statusKey !== 'worker_status' || value.worker_status !== QUESTION_STATUS) return { invalid: `the key must be exactly worker_status and its value exactly "${QUESTION_STATUS}"` };
+  if (index !== lastIndex) return { invalid: 'the input-required line must be the last non-empty line of the final message (nothing after it)' };
+  const q = value.question;
+  const keys = q && typeof q === 'object' && !Array.isArray(q) ? Object.keys(q) : [];
+  if (!q || keys.length !== 3 || !['id', 'prompt', 'blocking'].every((k) => keys.includes(k))) {
+    return { invalid: 'question must have exactly id, prompt and blocking (put facts, options and a recommendation inside prompt)' };
+  }
+  if (!nonEmpty(q.id) || !nonEmpty(q.prompt) || typeof q.blocking !== 'boolean' || placeholder(q.id) || placeholder(q.prompt)) {
+    return { invalid: 'question.id and question.prompt must be real non-empty strings and question.blocking a boolean' };
+  }
+  return { question: { id: q.id, prompt: q.prompt, blocking: q.blocking } };
+}
+
+/** Bind the answer to the pending question ID and use the worker's recorded prompt for transport. */
+export function validateAnswer(raw, pending) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new InputError('the answer is not an object');
+  const extra = Object.keys(raw).filter((k) => !ANSWER_KEYS.includes(k));
+  const missing = ANSWER_KEYS.filter((k) => !(k in raw));
+  if (extra.length || missing.length) throw new InputError(`answer keys must be exactly: ${ANSWER_KEYS.join(', ')} (extra: ${extra}; missing: ${missing})`);
+  if (raw.source !== 'user') throw new InputError('answer.source must be "user": only a person answers a worker question (a caller correction is a new instruction, not an answer)');
+  if (raw.question_id !== pending.id) throw new InputError(`answer.question_id must be the pending question id ${pending.id}`);
+  if (!nonEmpty(raw.question)) throw new InputError('answer.question must be a non-empty string');
+  if (!nonEmpty(raw.answer)) throw new InputError('answer.answer must be the non-empty verbatim words of the person');
+  if (typeof raw.answered_utc !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(raw.answered_utc) || Number.isNaN(Date.parse(raw.answered_utc))) {
+    throw new InputError('answer.answered_utc must be an ISO UTC time YYYY-MM-DDTHH:MM:SS[.fff]Z');
+  }
+  return { ...raw, question: pending.prompt };
+}
+
+function answerBlock(answer) {
+  return [
+    '## Continuation: the person\'s answer to your question (verbatim, relayed by the caller)',
+    `- question id: ${answer.question_id}`,
+    `- your question: ${answer.question}`,
+    `- answer (${answer.answered_utc}, source=${answer.source}): ${answer.answer}`,
+    '',
+    'This is the answer to that question only. It does not widen any approval or add an instruction. ' +
+      'Record an approval only if these words themselves approve the specific action you asked about; then transcribe them verbatim with the UTC ' +
+      'in your own approval format. Otherwise record no approval. The existence of an answer is not an approval.',
+    '',
+  ].join('\n');
 }
 
 /** The primary-model verdict against the caller-frozen exact expectation; never inferred from usage, never an alias lookup. */
@@ -397,8 +491,9 @@ function mergeVerdict(previous, now, expected) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------- job files
-const OPEN_STATES = new Set(['capacity_deferred', 'budget_exhausted']);
+const OPEN_STATES = new Set(['capacity_deferred', 'budget_exhausted', 'input_required']);
 const RESUMABLE = OPEN_STATES;
+const RETURNED = new Set(['returned', 'returned_with_denials']);
 
 function paths(jobDir) {
   return {
@@ -441,18 +536,23 @@ function evidenceList(root, job) {
     const dir = path.join(paths(root).attempts, 'attempt-' + String(i + 1).padStart(4, '0'));
     for (const name of ['launch.json', 'process.json', 'exit.json', 'stdout.log', 'stderr.log', 'final.txt', 'native.json']) files.push(path.join(dir, name));
   });
+  for (const t of job.turns ?? []) files.push(t.file);
   return files.filter((f) => fs.existsSync(f));
 }
 
 /** The public execution receipt of a TERMINAL job (never an evaluation); null while the job is open/unknown. */
 export function buildReceipt(root, job, identity) {
   let status;
-  if (job.state === 'returned') status = 'PASS';
-  else if (job.state === 'launch_failed') status = 'NOT_RUN';
+  if (RETURNED.has(job.state)) status = 'PASS';
+  else if (job.state === 'launch_failed') status = job.attempts.every((a) => a.state === 'launch_failed') ? 'NOT_RUN' : 'FAIL';
   else if (job.state === 'canceled') status = job.attempts.length === 0 ? 'NOT_RUN' : 'FAIL';
   else if (OPEN_STATES.has(job.state) || ['working', 'ready', 'inflight', 'unknown_launch_window', 'unknown_exit'].includes(job.state)) return null;
   else status = 'FAIL';
-  return receiptBody(root, job, identity, status, `execution report only, not a business verdict; state=${job.state}`);
+  const denied = job.denials;
+  const denialNote = denied == null ? 'UNREPORTED (the provider does not report denials)' : `${denied}${denied ? ' (cumulative; see attempts/*/native.json; denied actions did not run)' : ''}`;
+  const recorded = (job.turns ?? []).length;
+  const delivered = (job.turns ?? []).filter((t) => t.consumed_by_attempt != null).length;
+  return receiptBody(root, job, identity, status, `execution report only, not a business verdict; state=${job.state}; permission_denials=${denialNote}; answers_recorded=${recorded}; answers_delivered=${delivered}`);
 }
 
 function receiptBody(root, job, identity, status, note) {
@@ -495,12 +595,15 @@ async function runAttempt(root, job, normalized, deps, signal) {
     session_id: job.native_session_id, final_file: path.join(dir, 'final.txt'), max_turns: request.budget.max_turns, workspace: normalized.workspace_real,
   };
   const argv = [request.provider.executable, ...fill(resuming ? request.provider.resume_argv : request.provider.start_argv, values)];
-  const prompt = resuming ? RESUME_REMINDER + normalized.prompt_text : normalized.prompt_text;
+  // an answer turn carries only the recorded verbatim answer; the frozen prompt is already in the native session
+  const turn = job.pending_answer ?? null;
+  const prompt = turn ? RESUME_REMINDER + answerBlock(turn.answer) : resuming ? RESUME_REMINDER + normalized.prompt_text : normalized.prompt_text;
   const row = { n, mode: resuming ? 'resume' : 'start', argv, cwd: normalized.workspace_real, state: 'starting', pid: null, exit_code: null, signal: null, native_active_ms: null, burst: job.bursts.length };
   job.attempts.push(row);
   job.state = 'working';
   // persisted BEFORE the child exists: a crash in this window is `unknown_launch_window`, never a blind replay
-  writeNew(path.join(dir, 'launch.json'), JSON.stringify({ argv, cwd: row.cwd, started_utc: utc(), prompt_sha256: sha256(prompt), resumed_from_session: job.native_session_id }, null, 2) + '\n');
+  writeNew(path.join(dir, 'launch.json'), JSON.stringify({ argv, cwd: row.cwd, started_utc: utc(), prompt_sha256: sha256(prompt), resumed_from_session: job.native_session_id, answer_file: turn ? turn.file : null }, null, 2) + '\n');
+  if (turn) row.answer_turn = turn.n;
   persist(root, job);
 
   const outFd = fs.openSync(path.join(dir, 'stdout.log'), 'wx', 0o600);
@@ -570,6 +673,25 @@ async function runAttempt(root, job, normalized, deps, signal) {
   if (verdict === 'MISMATCH' && ['native_success', 'capacity', 'budget_exhausted'].includes(result)) result = 'identity_mismatch';
   if (outcome.interrupted) result = outcome.interrupted;
   else if (outcome.sig || outcome.code === null) result = 'process_signal';
+  // a returned run may end by asking a person; the final text is the worker's (Claude result / Codex -o file), never stderr or tool payloads
+  let finalText = seen.final_text ?? null;
+  if (request.provider.kind === 'codex' && fs.existsSync(values.final_file)) finalText = fs.readFileSync(values.final_file, 'utf8');
+  const asked = result === 'native_success' ? parseQuestion(finalText) : null;
+  if (asked?.invalid) result = 'invalid_question';
+  else if (asked?.question) {
+    result = 'input_required';
+    job.pending_question = { ...asked.question, attempt: n, asked_utc: utc() };
+  }
+  // Claude reports denials; Codex events do not, so its count stays UNREPORTED (null), never a measured 0
+  const denials = Array.isArray(seen.denials) ? seen.denials : [];
+  if (Array.isArray(seen.denials)) job.denials = (job.denials ?? 0) + denials.length;
+  else job.denials ??= null;
+  if (result === 'native_success' && job.denials > 0) result = 'returned_with_denials';
+  if (turn && result !== 'capacity') {
+    // the answer reached a native turn that did not fail at capacity: it is consumed (a capacity retry resends it verbatim)
+    delete job.pending_answer;
+    job.turns[turn.n - 1].consumed_by_attempt = n;
+  }
   if (seen.session) job.native_session_id = seen.session;
   for (const [list, found] of [[job.observed.models, seen.primary], [job.observed.child_models, seen.child_models]]) {
     for (const m of found) if (!list.includes(m.value)) list.push(m.value);
@@ -578,6 +700,7 @@ async function runAttempt(root, job, normalized, deps, signal) {
   job.observed.model_check = mergeVerdict(job.observed.model_check, verdict, expectedModels);
   writeNew(path.join(dir, 'native.json'), JSON.stringify({
     provider: request.provider.kind, source_format: seen.format, native_outcome: seen.outcome, errors: seen.errors ?? [],
+    permission_denials: Array.isArray(seen.denials) ? denials : 'UNREPORTED', question: asked ?? null, result_state: result,
     model_provenance: { requested_model: request.profile.model, expected_primary_models: expectedModels, primary_models: seen.primary, child_models: seen.child_models, usage_models: seen.usage_models, verdict, note: 'primary = authoritative main-session fields only; usage/child models are never promoted; the request is never copied into observed' },
     usage_raw: seen.usage ?? null,
   }, null, 2) + '\n');
@@ -624,7 +747,8 @@ async function execute(root, job, normalized, deps, signal) {
 async function executeBurst(root, job, normalized, deps, signal, burst) {
   const budget = normalized.request.budget;
   const deadline = deps.now() + budget.burst_seconds * 1000;
-  const resumeOffset = job.native_session_id ? 1 : 0;
+  // the capacity backoff applies to re-running a failed turn; an answer turn after a worker question is a new turn and does not wait
+  const resumeOffset = job.native_session_id && job.state !== 'input_required' ? 1 : 0;
   const before = job.state;
   let ran = false;
   const cancel = () => {
@@ -651,7 +775,8 @@ async function executeBurst(root, job, normalized, deps, signal, burst) {
     if (signal?.aborted) return cancel();
     ran = true;
     const result = await runAttempt(root, job, normalized, deps, signal);
-    if (result === 'native_success') return 0;
+    if (result === 'native_success' || result === 'returned_with_denials') return 0;
+    if (result === 'input_required') return 75;
     if (result === 'canceled') {
       job.cancel = { utc: utc(), phase: 'active_attempt' };
       burst.canceled_phase = 'active_attempt';
@@ -674,7 +799,10 @@ const defaultDeps = () => ({ sleep: (ms, signal) => delay(ms, undefined, { signa
 function finish(root, job, normalized, code) {
   const receipt = buildReceipt(root, job, normalized.request.request_identity);
   const written = receipt ? writeReceipt(root, job, receipt) : null;
-  return { code, state: job.state, native_session_id: job.native_session_id, attempts: job.attempts.length, open: OPEN_STATES.has(job.state), receipt: written ? paths(root).receipt : null };
+  return {
+    code, state: job.state, native_session_id: job.native_session_id, attempts: job.attempts.length, open: OPEN_STATES.has(job.state),
+    permission_denials: job.denials ?? null, question: job.state === 'input_required' ? job.pending_question ?? null : null, receipt: written ? paths(root).receipt : null,
+  };
 }
 
 /** Start a NEW job in a NEW directory (exclusive) and run one burst in the foreground. */
@@ -701,6 +829,7 @@ export async function startJob(jobDir, requestFile, deps = defaultDeps(), signal
       request_sha256: sha256(canonical(normalized.request)), prompt_sha256: normalized.prompt_sha256, workspace_real: normalized.workspace_real,
       requested: { model: normalized.request.profile.model, effort: normalized.request.profile.effort, expected_primary_models: normalized.request.profile.expected_primary_models, main_profile_id: normalized.request.profile.main_profile_id, sub_profile_id: normalized.request.profile.sub_profile_id, cli: normalized.request.profile.cli },
       observed: { models: [], usage_models: [], child_models: [], model_check: normalized.request.profile.expected_primary_models === null ? 'NO_EXPECTATION' : 'UNVERIFIED', effort: null }, native_session_id: null, attempts: [], bursts: [],
+      denials: normalized.request.provider.kind === 'claude' ? 0 : null, turns: [],
     };
     persist(root, job);
     const code = await execute(root, job, normalized, deps, signal);
@@ -741,6 +870,9 @@ export function statusJob(jobDir) {
   const state = lock?.alive ? 'locked_inflight' : liveState(root, job);
   return {
     state, recorded_state: job.state, open: OPEN_STATES.has(state), resumable: RESUMABLE.has(state) && Boolean(job.native_session_id) && !lock,
+    resume_needs_answer: state === 'input_required' && !job.pending_answer, answer_recorded: Boolean(job.pending_answer),
+    question: state === 'input_required' ? job.pending_question ?? null : null,
+    permission_denials: job.denials ?? null, answered_turns: (job.turns ?? []).map((t) => ({ n: t.n, question_id: t.question_id, file: t.file, consumed_by_attempt: t.consumed_by_attempt ?? null })),
     native_session_id: job.native_session_id, requested: job.requested, observed: job.observed, evidence_mode: job.evidence_mode,
     attempts: job.attempts.map((a) => ({ n: a.n, mode: a.mode, state: a.state, pid: a.pid, exit_code: a.exit_code, signal: a.signal, burst: a.burst, native_active_ms: a.native_active_ms })),
     bursts: job.bursts,
@@ -748,8 +880,11 @@ export function statusJob(jobDir) {
   };
 }
 
-/** Resume the SAME job from a capacity/budget checkpoint with the unchanged request; nothing is spawned unless every check passes. */
-export async function resumeJob(jobDir, requestFile, deps = defaultDeps(), signal) {
+/**
+ * Resume the SAME job with the unchanged request: from a capacity/budget checkpoint (no answer), or from an `input_required` stop with the person's
+ * verbatim answer (`answerFile`), which is frozen as `turns/NNNN/answer.json` before anything is spawned. Nothing is spawned unless every check passes.
+ */
+export async function resumeJob(jobDir, requestFile, deps = defaultDeps(), signal, answerFile = null) {
   const normalized = validateRequest(readJson(requestFile));
   const root = path.resolve(jobDir);
   const p = paths(root);
@@ -769,7 +904,42 @@ export async function resumeJob(jobDir, requestFile, deps = defaultDeps(), signa
       return { code: 4, state: live, reason: 'the last attempt has no recorded exit; nothing is spawned (an external effect may exist or still be running)' };
     }
     if (!RESUMABLE.has(job.state) || !job.native_session_id) {
-      return { code: 3, state: job.state, reason: 'only a capacity/budget checkpoint with an observed native session can be resumed' };
+      return { code: 3, state: job.state, reason: 'only a capacity/budget/input_required checkpoint with an observed native session can be resumed' };
+    }
+    job.turns ??= [];
+    if (job.state === 'input_required' && !job.pending_answer) {
+      if (!answerFile) return { code: 2, state: 'answer_required', question: job.pending_question, reason: 'the worker stopped to ask a person: resume needs --answer with the verbatim answer to this question' };
+      let raw;
+      try { raw = readJson(answerFile); } catch { throw new InputError('the answer file is not readable JSON'); }
+      const answer = validateAnswer(raw, job.pending_question);
+      const n = job.turns.length + 1;
+      const dir = path.join(root, 'turns', String(n).padStart(4, '0'));
+      fs.mkdirSync(dir, { recursive: true });
+      const file = path.join(dir, 'answer.json');
+      if (fs.existsSync(file)) {
+        // a crash between freezing and recording left this file: the same answer is adopted, a different one is refused (never overwritten)
+        let frozen;
+        try { frozen = readJson(file); } catch {
+          throw new InputError(`the frozen answer ${file} is unreadable; it is never overwritten (close the job with receipt --close-open and start a new job)`);
+        }
+        if (canonical(frozen) !== canonical(answer)) {
+          throw new InputError(`a different answer is already frozen at ${file}; resend that same answer file, or close the job with receipt --close-open and start a new job`);
+        }
+      } else {
+        // atomic and exclusive: write a temporary file, then hard-link it into place (fails if the target appeared meanwhile)
+        const pending = `${file}.${process.pid}.writing`;
+        fs.writeFileSync(pending, JSON.stringify(answer, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+        try { fs.linkSync(pending, file); } finally { fs.rmSync(pending, { force: true }); }
+      }
+      job.turns.push({ n, question_id: answer.question_id, file, recorded_utc: utc() });
+      job.pending_answer = { n, file, answer };
+      delete job.pending_question;
+      persist(root, job);
+    } else if (answerFile) {
+      const reason = job.pending_answer
+        ? `an answer is already recorded (turn ${job.pending_answer.n}): resume without --answer to deliver it`
+        : 'an answer is accepted only for a pending worker question (input_required)';
+      return { code: 2, state: job.pending_answer ? 'answer_recorded' : job.state, reason };
     }
     const code = await execute(root, job, normalized, deps, signal);
     return finish(root, job, normalized, code);
@@ -799,9 +969,9 @@ export function receiptJob(jobDir, close = null) {
 const USAGE = `usage:
   task_executor.mjs run <new-job-dir> --request FILE
   task_executor.mjs status <job-dir>
-  task_executor.mjs resume <job-dir> --request FILE
+  task_executor.mjs resume <job-dir> --request FILE [--answer ANSWER.json]
   task_executor.mjs receipt <job-dir> [--close-open NOT_RUN|FAIL --note TEXT]
-exit: 0 native returned | 75 open capacity/budget checkpoint | 1 terminal failure | 2 invalid input / changed input | 3 refused (duplicate, lock, terminal) | 4 unknown/inflight (no replay)`;
+exit: 0 native returned (check permission_denials) | 75 open checkpoint (capacity, budget, or input_required: a worker question to relay) | 1 terminal failure | 2 invalid/changed input or answer required | 3 refused (duplicate, lock, terminal) | 4 unknown/inflight (no replay)`;
 
 function option(args, name) {
   const at = args.indexOf(name);
@@ -819,7 +989,10 @@ export async function main(argv) {
     if (command === 'run' || command === 'resume') {
       const request = option(rest, '--request');
       if (!request) throw new InputError('--request FILE is required');
-      result = command === 'run' ? await startJob(jobDir, request, undefined, controller.signal) : await resumeJob(jobDir, request, undefined, controller.signal);
+      if (command === 'run' && rest.includes('--answer')) throw new InputError('--answer belongs to resume (a new job has no pending question)');
+      result = command === 'run'
+        ? await startJob(jobDir, request, undefined, controller.signal)
+        : await resumeJob(jobDir, request, undefined, controller.signal, option(rest, '--answer') ?? null);
     } else if (command === 'status') {
       result = { code: 0, ...statusJob(jobDir) };
     } else if (command === 'receipt') {

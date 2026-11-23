@@ -10,7 +10,7 @@
 | `protected.json` | snapshot | 파일별 보호 주석(분류, 원문) |
 | `backup/` | snapshot | Git이 수정 전 내용을 그대로 갖고 있지 않은 허용 경로 파일의 원본 |
 | `checks/` | snapshot, verify | 검사 명령의 출력 마지막 64KiB |
-| `reviews/<role>.json` | 메인 | 검토자 원 출력(`comment`, `structure`, `prose`, `diff`) |
+| `reviews/<role>.json` | 메인 | 검토자 원 출력. 역할은 `scripts/rules.json` `reviewers`의 값이다(`comment`, `structure`, `prose`, `integrity`, `diff`) |
 | `report.json` | 메인 | 아래 형식의 감사 보고서 |
 | `changes.json` | verify | 추가·삭제·변경 파일과 전후 해시. restore의 근거 |
 | `check_outputs.json` | verify | 수정 후 검사가 대상에 쓴 파일과 검사 직전·직후 해시 |
@@ -28,7 +28,7 @@
 ```json
 {
   "executor": "<하네스, 모델 ID>",
-  "reviewers": [{"role": "comment|structure|prose|diff", "independent": true, "executor": "<선택>"}],
+  "reviewers": [{"role": "comment|structure|prose|integrity|diff", "independent": true, "executor": "<선택>"}],
   "verdicts": [
     {"signal": "<신호 ID>", "verdict": "fix|keep|propose|blocked", "reason": "<근거>", "role": "<역할>"},
     {"rule_id": "<규칙 ID>", "file": "<파일>", "verdict": "keep", "reason": "<묶음 근거>", "role": "<역할>"}
@@ -54,7 +54,7 @@
 | lint-suppression | `allowed_suppression`(스타일 전용·결함 규칙), `external_constraint` |
 | swallowed-error | `external_constraint` |
 | commented-code, banner-comment | 없음. 지우거나 `blocked` |
-| hash-integrity | `last_resort`(git도 직접 비교도 닿지 않음), `external_constraint`(외부 규격이 digest를 요구), `not_integrity`(무결성·일치 확인에 쓰지 않음). `evidence`에 git·직접 비교를 쓸 수 없는 이유를 적는다 |
+| hash-integrity | `last_resort`, `external_constraint`, `not_integrity`. 뜻과 `evidence`에 적을 것은 [integrity-review.md](integrity-review.md) 규칙 4 |
 
 넓은 예외를 삼키는 코드에 정당한 이유가 있으면(소멸자나 종료 처리의 최선형 정리) 예외 형식을 좁혀 고친다. 좁힌 결과는 휴리스틱 신호라 판정만 받는다.
 
@@ -67,7 +67,7 @@
 | V3 | 허용 경로 안, 맡은 종류의 남은 확정 신호에 `justified_keep`이 없음, `blocked` 처분, 수정 전에 없던 ID의 처분, 일부만 남은 쌍둥이 묶음 |
 | V4 | 어느 파일·규칙이든 확정 신호 건수 증가. 수정 전에 검사한 파일이 해석 실패로 빠짐. 신호가 있던 파일이 `deleted_files` 신고 없이 사라지거나 옮겨짐. 허용 경로의 새 파일이 스캔 제외 대상. 수정 전에 검사한 파일은 생성물 표지가 생겨도 그대로 검사한다 |
 | V5 | 수정 전 휴리스틱 신호나 새로 생긴 휴리스틱 신호의 판정 누락 |
-| V6 | `reviews/comment.json`, `reviews/structure.json` 없음. 산문 파일이 있는데 `reviews/prose.json` 없음. 바뀐 파일이 있는데 `reviews/diff.json` 없음 |
+| V6 | `rules.json` `reviewers`가 이번 run에 요구하는 기록이 없거나 JSON이 아님. `comment`·`structure`는 항상, `prose`는 산문 파일이 있을 때, `integrity`는 수정 전이나 수정 후 스캔에 `hash-integrity` 신호가 있을 때, `diff`는 바뀐 파일이 있을 때 요구한다 |
 | V7 | 기준 검사 실패·실행 불가(바뀐 파일 수와 무관), 검사도 위임도 없이 수정, 수정 후 검사의 실패·실행 불가·시간 초과. 바뀐 파일이 0개면 `NOT_APPLICABLE` |
 | V8 | `report.json` 없음, 최상위 목록 키 누락, 형식 위반, 처분의 필수 칸 누락, 수정 유형에 맞지 않는 예외 |
 

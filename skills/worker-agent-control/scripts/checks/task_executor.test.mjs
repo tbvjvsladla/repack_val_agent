@@ -29,6 +29,7 @@ process.stdin.on('data', (d) => { stdin += d; });
 process.stdin.on('end', () => {
   const step = plan.steps[Math.min(n, plan.steps.length) - 1];
   fs.writeFileSync(path.join(plan.dir, 'invocation-' + n + '.json'), JSON.stringify({ argv: process.argv.slice(2), cwd: process.cwd(), stdin, env_has_secret: Boolean(process.env.FAKE_SECRET) }));
+  if (step.final) { const at = process.argv.indexOf('-o'); if (at > 0) fs.writeFileSync(process.argv[at + 1], step.final); }
   if (step.stdout) process.stdout.write(step.stdout);
   if (step.stderr) process.stderr.write(step.stderr);
   if (step.kill) process.kill(process.pid, step.kill);
@@ -151,7 +152,8 @@ test('a real child returns: identity echoed unchanged, raw/argv/cwd/pid/session/
 test('exit 0 is not success by itself: structured errors, denials, empty results and max-turns are classified from the native wrapper', async () => {
   const cases = [
     ['is_error', claudeWrapper({ is_error: true, subtype: 'error_during_execution', result: 'x' }), 'native_error', 'FAIL'],
-    ['denials', claudeWrapper({ permission_denials: [{ tool_name: 'Edit' }] }), 'permission_denied', 'FAIL'],
+    ['denials-on-success', claudeWrapper({ permission_denials: [{ tool_name: 'Edit' }] }), 'returned_with_denials', 'PASS'],
+    ['denials-on-error', claudeWrapper({ is_error: true, subtype: 'error_during_execution', permission_denials: [{ tool_name: 'Edit' }] }), 'permission_denied', 'FAIL'],
     ['empty', claudeWrapper({ result: '' }), 'native_failure', 'FAIL'],
     ['not json', 'plain text, not a wrapper\n', 'invalid_events', 'FAIL'],
     ['success', claudeWrapper(), 'returned', 'PASS'],
@@ -890,4 +892,339 @@ test('wall accounting: public wall_ms is the observed burst wall incl. a real ba
     assert.equal('wall_ms' in attempt, false, 'an attempt carries native_active_ms, never a mislabeled wall_ms');
   }
   assert.equal(job.attempts.reduce((sum, x) => sum + x.native_active_ms, 0) > 0, true);
+});
+
+// ====================================================================================================================
+// Worker question relay: input_required stop, verbatim answer turn on the SAME native session, denials as events
+// ====================================================================================================================
+const askLine = (id = 'q1', prompt = 'Approve rebuild with vLLM 0.34.0?', blocking = true) =>
+  JSON.stringify({ worker_status: 'input-required', question: { id, prompt, blocking } });
+const answerOf = (extra = {}) => ({ question_id: 'q1', question: 'Approve rebuild with vLLM 0.34.0?', answer: '승인. 0.34.0으로 빌드해.', answered_utc: '2026-11-18T00:00:00Z', source: 'user', ...extra });
+const writeAnswer = (a, value, name = 'answer.json') => { const file = path.join(a.dir, name); fs.writeFileSync(file, JSON.stringify(value)); return file; };
+
+test('Q1: a returned worker that ends with an input-required line stops OPEN (75, no receipt) and reports the question; prose is never parsed', async () => {
+  const a = area('q1-ask');
+  plan(a, [{ stdout: claudeWrapper({ result: `I need a decision.\n${askLine()}\n` }) }]);
+  write(a, { provider: claudeProvider(a), profile: profileOf(a, { model: null, effort: null }) });
+  const first = await startJob(a.job, a.requestFile, deps(a));
+  assert.deepEqual([first.code, first.state, first.open, first.receipt], [75, 'input_required', true, null]);
+  assert.equal(first.question.id, 'q1');
+  assert.equal(first.question.blocking, true);
+  const status = statusJob(a.job);
+  assert.equal(status.resume_needs_answer, true);
+  assert.equal(status.question.prompt, 'Approve rebuild with vLLM 0.34.0?');
+  assert.equal(fs.existsSync(path.join(a.job, 'receipt.json')), false);
+  const prose = area('q1-prose');
+  plan(prose, [{ stdout: claudeWrapper({ result: 'status: input-required — should I continue? (prose only)' }) }]);
+  write(prose, { provider: claudeProvider(prose), profile: profileOf(prose, { model: null, effort: null }) });
+  assert.equal((await startJob(prose.job, prose.requestFile, deps(prose))).state, 'returned');
+  const other = area('q1-other-status');
+  plan(other, [{ stdout: claudeWrapper({ result: JSON.stringify({ worker_status: 'completed' }) }) }]);
+  write(other, { provider: claudeProvider(other), profile: profileOf(other, { model: null, effort: null }) });
+  assert.equal((await startJob(other.job, other.requestFile, deps(other))).state, 'returned');
+});
+
+test('Q2: a malformed input-required line is a terminal invalid_question, never a guessed question', async () => {
+  const a = area('q2-bad');
+  plan(a, [{ stdout: claudeWrapper({ result: JSON.stringify({ worker_status: 'input-required', question: { id: 'q1', prompt: '' } }) }) }]);
+  write(a, { provider: claudeProvider(a), profile: profileOf(a, { model: null, effort: null }) });
+  const result = await startJob(a.job, a.requestFile, deps(a));
+  assert.deepEqual([result.code, result.state], [1, 'invalid_question']);
+  assert.equal(readReceipt(a).status, 'FAIL');
+});
+
+test('Q3: resume refuses a missing, mismatched, non-user or extra-key answer before spawning; an answer outside input_required is refused', async () => {
+  const a = area('q3-refuse');
+  plan(a, [{ stdout: claudeWrapper({ result: askLine() }) }, { stdout: claudeWrapper() }]);
+  write(a, { provider: claudeProvider(a), profile: profileOf(a, { model: null, effort: null }) });
+  await startJob(a.job, a.requestFile, deps(a));
+  const none = await resumeJob(a.job, a.requestFile, deps(a));
+  assert.deepEqual([none.code, none.state], [2, 'answer_required']);
+  for (const [name, bad, pattern] of [
+    ['wrong-id', answerOf({ question_id: 'q9' }), /pending question id/],
+    ['missing-question-text', answerOf({ question: '  ' }), /question must be a non-empty string/],
+    ['not-user', answerOf({ source: 'orchestrator' }), /only a person/],
+    ['empty', answerOf({ answer: '  ' }), /verbatim words/],
+    ['local-time', answerOf({ answered_utc: '2026-11-18T09:00:00+09:00' }), /UTC/],
+    ['extra-key', { ...answerOf(), approval: 'granted' }, /exactly/],
+  ]) {
+    await assert.rejects(resumeJob(a.job, a.requestFile, deps(a), undefined, writeAnswer(a, bad, name + '.json')), (e) => e instanceof InputError && pattern.test(e.message), name);
+  }
+  assert.equal(invocations(a), 1, 'nothing spawned by a refused answer');
+  assert.equal(fs.existsSync(path.join(a.job, 'turns')), false);
+  const b = area('q3-not-pending');
+  plan(b, [{ stdout: claudeWrapper({ subtype: 'error_max_turns', is_error: true, errors: ['Reached maximum number of turns (3)'] }), exit: 1 }]);
+  write(b, { provider: claudeProvider(b), profile: profileOf(b, { model: null, effort: null }) });
+  await startJob(b.job, b.requestFile, deps(b));
+  const wrong = await resumeJob(b.job, b.requestFile, deps(b), undefined, writeAnswer(b, answerOf()));
+  assert.deepEqual([wrong.code, wrong.state], [2, 'budget_exhausted']);
+});
+
+test('Q4: a valid answer is frozen as turns/0001/answer.json and sent verbatim on the SAME session; the job then returns with a receipt', async () => {
+  const a = area('q4-answer');
+  plan(a, [{ stdout: claudeWrapper({ result: askLine() }) }, { stdout: claudeWrapper({ result: 'built and verified' }) }]);
+  write(a, { provider: claudeProvider(a), profile: profileOf(a, { model: null, effort: null }) });
+  await startJob(a.job, a.requestFile, deps(a));
+  const answer = answerOf({ question: 'Rebuild with vLLM 0.34.0 — approve?' });
+  const resumed = await resumeJob(a.job, a.requestFile, deps(a), undefined, writeAnswer(a, answer));
+  assert.deepEqual([resumed.code, resumed.state], [0, 'returned']);
+  const frozen = JSON.parse(fs.readFileSync(path.join(a.job, 'turns', '0001', 'answer.json'), 'utf8'));
+  assert.deepEqual(frozen, { ...answer, question: answerOf().question });
+  const second = invocation(a, 2);
+  assert.ok(second.argv.includes('--resume') && second.argv.includes(SID), 'same native session');
+  assert.ok(second.stdin.includes(answer.answer) && second.stdin.includes(answerOf().question), 'original question and user answer');
+  assert.ok(!second.stdin.includes(answer.question), 'the worker receives its stored question');
+  assert.ok(second.stdin.includes('does not widen any approval'), 'answer is not an approval');
+  assert.ok(!second.stdin.includes('PUBLIC TASK PROMPT'), 'the frozen prompt is not replayed on an answer turn');
+  const receipt = readReceipt(a);
+  assert.equal(receipt.status, 'PASS');
+  assert.ok(receipt.evidence.includes(path.join(a.job, 'turns', '0001', 'answer.json')));
+  assert.match(receipt.note, /answers_recorded=1; answers_delivered=1/);
+  await assert.rejects(resumeJob(a.job, a.requestFile, deps(a), undefined, writeAnswer(a, answer, 'again.json')).then((r) => { if (r.code === 3) throw new InputError('terminal'); }), InputError);
+});
+
+test('Q5: a capacity failure on the answer turn keeps the answer pending and resends it verbatim on the next same-session attempt', async () => {
+  const a = area('q5-codex-capacity');
+  plan(a, [
+    { stdout: codex(SID, done), final: `need input\n${askLine()}\n` },
+    { stdout: capacityEvents(SID), exit: 1 },
+    { stdout: codex(SID, done), final: 'done' },
+  ]);
+  write(a, { budget: { attempt_timeout_seconds: 20, additional_capacity_attempts: 2, backoff_seconds: 0, burst_seconds: 100 } });
+  const first = await startJob(a.job, a.requestFile, deps(a));
+  assert.equal(first.state, 'input_required');
+  const answer = answerOf();
+  const resumed = await resumeJob(a.job, a.requestFile, deps(a), undefined, writeAnswer(a, answer));
+  assert.deepEqual([resumed.code, resumed.state], [0, 'returned']);
+  for (const n of [2, 3]) assert.ok(invocation(a, n).stdin.includes(answer.answer), `attempt ${n} carries the answer`);
+  assert.equal(jobJson(a).turns[0].consumed_by_attempt, 3);
+});
+
+test('Q6: denials on a returned run are recorded as events and counted in the receipt note; a question with denials still stops to ask', async () => {
+  const a = area('q6-denials');
+  plan(a, [{ stdout: claudeWrapper({ permission_denials: [{ tool_name: 'Bash' }, { tool_name: 'Bash' }] }) }]);
+  write(a, { provider: claudeProvider(a), profile: profileOf(a, { model: null, effort: null }) });
+  const result = await startJob(a.job, a.requestFile, deps(a));
+  assert.deepEqual([result.code, result.state, result.permission_denials], [0, 'returned_with_denials', 2]);
+  assert.match(readReceipt(a).note, /permission_denials=2/);
+  const native = JSON.parse(fs.readFileSync(path.join(a.job, 'attempts', 'attempt-0001', 'native.json'), 'utf8'));
+  assert.equal(native.permission_denials.length, 2);
+  const b = area('q6-ask-denials');
+  plan(b, [{ stdout: claudeWrapper({ result: askLine(), permission_denials: [{ tool_name: 'Bash' }] }) }]);
+  write(b, { provider: claudeProvider(b), profile: profileOf(b, { model: null, effort: null }) });
+  const asked = await startJob(b.job, b.requestFile, deps(b));
+  assert.deepEqual([asked.code, asked.state, asked.permission_denials], [75, 'input_required', 1]);
+});
+
+test('Q7: the CLI refuses --answer on run and passes it on resume', () => {
+  const a = area('q7-cli');
+  plan(a, [{ stdout: claudeWrapper({ result: askLine() }) }, { stdout: claudeWrapper() }]);
+  write(a, { provider: claudeProvider(a), profile: profileOf(a, { model: null, effort: null }) });
+  const env = { ...process.env, FAKE_PLAN: path.join(a.dir, 'plan.json') };
+  const run = spawnSync(process.execPath, [EXECUTOR, 'run', a.job, '--request', a.requestFile, '--answer', writeAnswer(a, answerOf())], { env, encoding: 'utf8' });
+  assert.equal(run.status, 2);
+  const start = spawnSync(process.execPath, [EXECUTOR, 'run', a.job, '--request', a.requestFile], { env, encoding: 'utf8' });
+  assert.equal(start.status, 75);
+  const resume = spawnSync(process.execPath, [EXECUTOR, 'resume', a.job, '--request', a.requestFile, '--answer', writeAnswer(a, answerOf(), 'cli-answer.json')], { env, encoding: 'utf8' });
+  assert.equal(resume.status, 0, resume.stderr);
+  assert.equal(JSON.parse(resume.stdout).state, 'returned');
+});
+
+// ------------------------------------------------------------------------------------------------------------ review round 1 (F1-F8)
+const nullProfile = (a) => ({ provider: claudeProvider(a), profile: profileOf(a, { model: null, effort: null }) });
+
+test('F1/F2: misspelled status, two questions, a question that is not last, and placeholders fail closed or are ignored; prose never asks', async () => {
+  const q = { id: 'q1', prompt: 'Rebuild?', blocking: true };
+  const cases = [
+    ['underscore', JSON.stringify({ worker_status: 'input_required', question: q }), 'invalid_question'],
+    ['upper', JSON.stringify({ worker_status: 'INPUT-REQUIRED', question: q }), 'invalid_question'],
+    ['two', `${askLine('q1')}\n${askLine('q2')}`, 'invalid_question'],
+    ['not-last', `${askLine()}\nAll done.`, 'invalid_question'],
+    ['quoted-template', `format:\n${JSON.stringify({ worker_status: 'input-required', question: { id: '<짧은 고유 id>', prompt: '<질문 원문>', blocking: true } })}\nAll tasks complete, nothing to ask.`, 'returned'],
+    ['template-then-real', `${JSON.stringify({ worker_status: 'input-required', question: { id: '<id>', prompt: '<p>', blocking: true } })}\n${askLine()}`, 'input_required'],
+  ];
+  for (const [name, result, state] of cases) {
+    const a = area('f1-' + name);
+    plan(a, [{ stdout: claudeWrapper({ result }) }]);
+    write(a, nullProfile(a));
+    assert.equal((await startJob(a.job, a.requestFile, deps(a))).state, state, name);
+  }
+});
+
+test('F1: codex without the -o file still sees the question from the last agent_message item', async () => {
+  const a = area('f1-codex-agent-message');
+  plan(a, [{ stdout: codex(SID, { type: 'item.started', item: { id: 'm1', type: 'agent_message' } }, { type: 'item.completed', item: { id: 'm1', type: 'agent_message', text: `need\n${askLine()}` } }, done) }]);
+  write(a, { provider: { kind: 'codex', executable: a.exe, start_argv: ['exec', '--json', '-m', '{model}', '-c', 'model_reasoning_effort={effort_json}', '-'], resume_argv: ['exec', 'resume', '--json', '-m', '{model}', '-c', 'model_reasoning_effort={effort_json}', '{session_id}', '-'] } });
+  const result = await startJob(a.job, a.requestFile, deps(a));
+  assert.deepEqual([result.code, result.state, result.permission_denials], [75, 'input_required', null]);
+});
+
+test('F7: a question line in a non-success result is ignored; the result keeps its failure state', async () => {
+  for (const [name, stdout, exit, state] of [
+    ['native-error', claudeWrapper({ is_error: true, subtype: 'error_during_execution', result: askLine() }), 0, 'native_error'],
+    ['max-turns', claudeWrapper({ subtype: 'error_max_turns', is_error: true, errors: ['Reached maximum number of turns (3)'], result: askLine() }), 1, 'budget_exhausted'],
+  ]) {
+    const a = area('f7-' + name);
+    plan(a, [{ stdout, exit }]);
+    write(a, nullProfile(a));
+    assert.equal((await startJob(a.job, a.requestFile, deps(a))).state, state, name);
+  }
+});
+
+test('F3/F7/R4: capacity exhaustion on the answer turn keeps the answer recorded; --answer is then refused and a plain resume resends it after the normal capacity backoff; the first answer delivery does not wait', async () => {
+  const a = area('f3-capacity-exhausted');
+  plan(a, [
+    { stdout: codex(SID, done), final: askLine() },
+    { stdout: capacityEvents(SID), exit: 1 },
+    { stdout: codex(SID, done), final: 'done' },
+  ]);
+  write(a, { budget: { attempt_timeout_seconds: 20, additional_capacity_attempts: 0, backoff_seconds: 7, burst_seconds: 100 } });
+  await startJob(a.job, a.requestFile, deps(a));
+  const answer = answerOf();
+  const first = await resumeJob(a.job, a.requestFile, deps(a), undefined, writeAnswer(a, answer));
+  assert.equal(first.state, 'capacity_deferred');
+  assert.deepEqual(a.delays, [], 'the answer turn did not wait for a capacity backoff');
+  assert.equal(statusJob(a.job).answer_recorded, true);
+  const refused = await resumeJob(a.job, a.requestFile, deps(a), undefined, writeAnswer(a, answer, 'again.json'));
+  assert.deepEqual([refused.code, refused.state], [2, 'answer_recorded']);
+  const plain = await resumeJob(a.job, a.requestFile, deps(a));
+  assert.equal(plain.state, 'returned');
+  assert.deepEqual(a.delays, [7000], 'the resend after capacity follows the capacity backoff');
+  assert.ok(invocation(a, 3).stdin.includes(answer.answer), 'resent verbatim');
+});
+
+test('F3: an orphan frozen answer with the same content is adopted; a different one is refused, never overwritten', async () => {
+  const a = area('f3-orphan');
+  plan(a, [{ stdout: claudeWrapper({ result: askLine() }) }, { stdout: claudeWrapper() }]);
+  write(a, nullProfile(a));
+  await startJob(a.job, a.requestFile, deps(a));
+  const dir = path.join(a.job, 'turns', '0001');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'answer.json'), JSON.stringify(answerOf({ answer: 'different words' })));
+  await assert.rejects(resumeJob(a.job, a.requestFile, deps(a), undefined, writeAnswer(a, answerOf())), (e) => e instanceof InputError && /already frozen/.test(e.message));
+  fs.writeFileSync(path.join(dir, 'answer.json'), JSON.stringify(answerOf()));
+  assert.equal((await resumeJob(a.job, a.requestFile, deps(a), undefined, writeAnswer(a, answerOf(), 'same.json'))).state, 'returned');
+});
+
+test('F4: denial counts are cumulative over the job and drive the terminal state; codex denials are UNREPORTED, not 0', async () => {
+  const a = area('f4-cumulative');
+  plan(a, [{ stdout: claudeWrapper({ result: askLine(), permission_denials: [{ tool_name: 'Bash' }] }) }, { stdout: claudeWrapper() }]);
+  write(a, nullProfile(a));
+  await startJob(a.job, a.requestFile, deps(a));
+  const done2 = await resumeJob(a.job, a.requestFile, deps(a), undefined, writeAnswer(a, answerOf()));
+  assert.deepEqual([done2.state, done2.permission_denials], ['returned_with_denials', 1]);
+  const c = area('f4-codex');
+  plan(c, [{ stdout: codex(SID, done) }]);
+  write(c);
+  const r = await startJob(c.job, c.requestFile, deps(c));
+  assert.equal(r.permission_denials, null);
+  assert.match(readReceipt(c).note, /permission_denials=UNREPORTED/);
+});
+
+test('F7: an old job.json without turns/denials still reports status and resumes from a budget checkpoint', async () => {
+  const a = area('f7-old-job');
+  plan(a, [{ stdout: claudeWrapper({ subtype: 'error_max_turns', is_error: true, errors: ['Reached maximum number of turns (3)'] }), exit: 1 }, { stdout: claudeWrapper() }]);
+  write(a, nullProfile(a));
+  await startJob(a.job, a.requestFile, deps(a));
+  const file = path.join(a.job, 'job.json');
+  const old = JSON.parse(fs.readFileSync(file, 'utf8'));
+  delete old.turns;
+  delete old.denials;
+  fs.writeFileSync(file, JSON.stringify(old));
+  assert.equal(statusJob(a.job).state, 'budget_exhausted');
+  assert.equal((await resumeJob(a.job, a.requestFile, deps(a))).state, 'returned');
+});
+
+test('F8: answered_utc must be a full ISO UTC timestamp', async () => {
+  const a = area('f8-utc');
+  plan(a, [{ stdout: claudeWrapper({ result: askLine() }) }]);
+  write(a, nullProfile(a));
+  await startJob(a.job, a.requestFile, deps(a));
+  for (const bad of ['2026Z', '2026-11-18Z', '2026-11-18T00:00Z']) {
+    await assert.rejects(resumeJob(a.job, a.requestFile, deps(a), undefined, writeAnswer(a, answerOf({ answered_utc: bad }), `utc-${bad}.json`)), /YYYY-MM-DDTHH:MM:SS/, bad);
+  }
+});
+
+// ------------------------------------------------------------------------------------------------------------ review round 2 (R1-R6)
+test('R1: near-miss question forms are invalid_question, never a silent PASS; a trailing fence line is tolerated', async () => {
+  const q = { id: 'q1', prompt: 'Rebuild?', blocking: true };
+  const exact = askLine();
+  const cases = [
+    ['space-status', JSON.stringify({ worker_status: 'input required', question: q }), 'invalid_question'],
+    ['dot-status', JSON.stringify({ worker_status: 'input-required.', question: q }), 'invalid_question'],
+    ['unicode-hyphen', JSON.stringify({ worker_status: 'input‐required', question: q }), 'invalid_question'],
+    ['other-status-with-question', JSON.stringify({ worker_status: 'needs-input', question: q }), 'invalid_question'],
+    ['backticks', '`' + exact + '`', 'invalid_question'],
+    ['prefix', 'QUESTION: ' + exact, 'invalid_question'],
+    ['pretty-printed', JSON.stringify({ worker_status: 'input-required', question: q }, null, 2), 'invalid_question'],
+    ['placeholder-last', JSON.stringify({ worker_status: 'input-required', question: { id: 'q1', prompt: '<질문 원문>', blocking: true } }), 'invalid_question'],
+    ['trailing-sentence', exact + '\n답을 기다리겠습니다.', 'invalid_question'],
+    ['fenced-at-end', '```json\n' + exact + '\n```', 'input_required'],
+    ['plain-prose', 'I could ask for input, but everything is complete.', 'returned'],
+  ];
+  for (const [name, result, state] of cases) {
+    const a = area('r1-' + name);
+    plan(a, [{ stdout: claudeWrapper({ result }) }]);
+    write(a, nullProfile(a));
+    const r = await startJob(a.job, a.requestFile, deps(a));
+    assert.equal(r.state, state, name);
+    if (state === 'invalid_question') assert.equal(readReceipt(a).status, 'FAIL', name);
+  }
+});
+
+test('R6: a question with keys other than id/prompt/blocking is invalid (facts and options go inside prompt)', async () => {
+  const a = area('r6-extra-key');
+  plan(a, [{ stdout: claudeWrapper({ result: JSON.stringify({ worker_status: 'input-required', question: { id: 'q1', prompt: 'Rebuild?', blocking: true, options: ['a', 'b'] } }) }) }]);
+  write(a, nullProfile(a));
+  assert.equal((await startJob(a.job, a.requestFile, deps(a))).state, 'invalid_question');
+});
+
+test('R3/R5: the answer block limits approval transcription to the asked action; the freeze is atomic and an unreadable frozen file is refused with its own reason', async () => {
+  const a = area('r5-freeze');
+  plan(a, [{ stdout: claudeWrapper({ result: askLine() }) }, { stdout: claudeWrapper() }]);
+  write(a, nullProfile(a));
+  await startJob(a.job, a.requestFile, deps(a));
+  const dir = path.join(a.job, 'turns', '0001');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'answer.json'), '{"question_id": "q1", "quest');
+  await assert.rejects(resumeJob(a.job, a.requestFile, deps(a), undefined, writeAnswer(a, answerOf())), (e) => e instanceof InputError && /unreadable/.test(e.message));
+  fs.rmSync(path.join(dir, 'answer.json'));
+  assert.equal((await resumeJob(a.job, a.requestFile, deps(a), undefined, writeAnswer(a, answerOf(), 'ok.json'))).state, 'returned');
+  assert.deepEqual(fs.readdirSync(dir), ['answer.json'], 'no temporary file left behind');
+  assert.ok(invocation(a, 2).stdin.includes('Record an approval only if these words themselves approve the specific action you asked about'));
+});
+
+// ------------------------------------------------------------------------------------------------------------ post-review (round 3 non-blocking)
+test('P1: half-placeholder questions, status-key variants and bare question objects are attempts (invalid), not a silent PASS', async () => {
+  const q = { id: 'q1', prompt: 'Rebuild?', blocking: true };
+  const cases = [
+    ['half-placeholder-not-last', JSON.stringify({ worker_status: 'input-required', question: { id: '<짧은 고유 id>', prompt: 'DB 마이그레이션 전에 A/B 중 무엇을 쓸까요?', blocking: true } }) + '\n답을 기다리겠습니다.', 'invalid_question'],
+    ['camel-key', JSON.stringify({ workerStatus: 'input-required', question: q }), 'invalid_question'],
+    ['multiline-camel-key', JSON.stringify({ workerStatus: 'input-required', question: q }, null, 2), 'invalid_question'],
+    ['prefixed-hyphen-key', 'Pending: ' + JSON.stringify({ 'worker-status': 'input-required', question: q }), 'invalid_question'],
+    ['prefixed-plus-valid', 'Pending: ' + askLine('earlier') + '\n' + askLine(), 'invalid_question'],
+    ['dash-key', JSON.stringify({ 'worker-status': 'input-required', question: q }), 'invalid_question'],
+    ['status-key', JSON.stringify({ status: 'input-required', question: q }), 'invalid_question'],
+    ['bare-question', JSON.stringify({ question: q }), 'invalid_question'],
+    ['unrelated-json', JSON.stringify({ status: 'ok', files: 3 }), 'returned'],
+  ];
+  for (const [name, result, state] of cases) {
+    const a = area('p1-' + name);
+    plan(a, [{ stdout: claudeWrapper({ result }) }]);
+    write(a, nullProfile(a));
+    assert.equal((await startJob(a.job, a.requestFile, deps(a))).state, state, name);
+  }
+});
+
+test('P3: a launch failure on the answer turn is FAIL (work already ran), and the undelivered answer is recorded but not delivered', async () => {
+  const a = area('p3-launch-fail');
+  plan(a, [{ stdout: claudeWrapper({ result: askLine() }) }]);
+  write(a, nullProfile(a));
+  await startJob(a.job, a.requestFile, deps(a));
+  fs.chmodSync(a.exe, 0o644);
+  const r = await resumeJob(a.job, a.requestFile, deps(a), undefined, writeAnswer(a, answerOf()));
+  assert.equal(r.state, 'launch_failed');
+  const receipt = readReceipt(a);
+  assert.equal(receipt.status, 'FAIL');
+  assert.match(receipt.note, /answers_recorded=1; answers_delivered=0/);
 });

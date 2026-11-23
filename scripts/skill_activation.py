@@ -264,8 +264,11 @@ def mcp_registrations(root: Path) -> tuple[dict[str, list[str]], list[str]]:
             add(json.loads(project_mcp.read_text(encoding="utf-8")).get("mcpServers"), ".mcp.json (project)")
         except (OSError, ValueError, AttributeError):
             unreadable.append(".mcp.json")
+    codex_home = os.environ.get("CODEX_HOME")
+    codex_user = Path(codex_home) if codex_home else home() / ".codex"
+    codex_user_label = "$CODEX_HOME/config.toml" if codex_home else "~/.codex/config.toml"
     for path, where in ((root / ".codex/config.toml", ".codex/config.toml (project)"),
-                        (home() / ".codex/config.toml", "~/.codex/config.toml (user)")):
+                        (codex_user / "config.toml", f"{codex_user_label} (user)")):
         if path.is_file():
             try:
                 add(tomllib.loads(path.read_text(encoding="utf-8")).get("mcp_servers"), where)

@@ -6,10 +6,11 @@ Node.js 24+ 기본 모듈만 사용하는 `scripts/task_executor.mjs`다. 하나
 node <skill-dir>/scripts/task_executor.mjs run <새-job-dir> --request <request.json>
 node <skill-dir>/scripts/task_executor.mjs status <job-dir>
 node <skill-dir>/scripts/task_executor.mjs resume <같은-job-dir> --request <같은-request.json>
+node <skill-dir>/scripts/task_executor.mjs resume <같은-job-dir> --request <같은-request.json> --answer <answer.json>
 node <skill-dir>/scripts/task_executor.mjs receipt <job-dir>
 ```
 
-`run`/`resume`는 foreground의 한정된 실행 묶음이다. 호스트의 진행 세션으로 관측한다. 종료 0은 native 성공 반환, 75는 capacity/턴 예산의 열린 체크포인트, 1은 실행 실패, 2는 잘못되거나 변경된 입력, 3은 중복/lock/종료된 작업 등 재실행 거부, 4는 실행 중이거나 종료가 불명확해 기동하지 않았다는 뜻이다. 75이면 저장된 부분 결과와 상태를 확인하고 동일 요청으로 다음 묶음을 재개한다. 한 묶음의 한도가 과업 수명이 아니다.
+`run`/`resume`는 foreground의 한정된 실행 묶음이다. 호스트의 진행 세션으로 관측한다. 종료 0은 native 성공 반환(`permission_denials` 수를 확인한다), 75는 열린 체크포인트(capacity, 턴 예산, 또는 워커 질문 `input_required`), 1은 실행 실패, 2는 잘못되거나 변경된 입력 또는 답이 필요한 재개(`answer_required`), 3은 중복/lock/종료된 작업 등 재실행 거부, 4는 실행 중이거나 종료가 불명확해 기동하지 않았다는 뜻이다. 75이면 저장된 부분 결과와 상태를 확인하고 동일 요청으로 다음 묶음을 재개한다. `input_required`면 질문을 사용자에게 중계하고, 답을 받은 뒤 `--answer`로 재개한다. 한 묶음의 한도가 과업 수명이 아니다.
 
 ## 입력
 
@@ -54,7 +55,7 @@ Claude 계열의 미지정 model/effort는 **명시적인 null**로 둔다. 그 
 
 `provider.kind: codex`는 start/resume argv를 생략할 수 있다. 기본은 `exec --json -m {model} -c model_reasoning_effort={effort_json} -o {final_file} -`와 `exec resume`에 같은 인자 및 `{session_id}`를 넣는 형태다. Claude는 두 배열을 모두 제공한다. 지원 placeholder는 `{model}`, `{effort}`, `{effort_json}`, `{session_id}`, `{final_file}`, `{max_turns}`, `{workspace}`다. `{max_turns}`가 있으면 budget.max_turns도 양의 정수여야 한다.
 
-재개 배열에서 native resume 동사/flag와 session placeholder만 빼면 시작 배열과 **토큰·순서·flag/value 연결이 동일**해야 한다. 같은 요청·프롬프트·경로·프로필·권한을 유지한다. shell 문자열은 실행하지 않고 argv 배열과 stdin을 사용한다. 인증·환경·기존 native 설정은 상속하며 전역 설정은 수정하지 않는다. bypass flag·`--last`는 거부한다. 도구 제한은 전체 OS sandbox가 아니다. 실제 CLI 지원 인자는 설치본 help로 확인한다.
+재개 배열에서 native resume 동사/flag와 session placeholder만 빼면 시작 배열과 **토큰·순서·flag/value 연결이 동일**해야 한다. 같은 요청·프롬프트·경로·프로필·권한을 유지한다. 답 재개도 요청과 프롬프트를 바꾸지 않는다. 불변 답 기록만 더해지며, 그 재개의 stdin은 재개 안내와 질문·답 원문 블록이다(원 프롬프트는 이미 native 세션에 있다). shell 문자열은 실행하지 않고 argv 배열과 stdin을 사용한다. 인증·환경·기존 native 설정은 상속하며 전역 설정은 수정하지 않는다. bypass flag·`--last`는 거부한다. 도구 제한은 전체 OS sandbox가 아니다. 실제 CLI 지원 인자는 설치본 help로 확인한다.
 
 예산은 attempt_timeout_seconds ≥1, additional_capacity_attempts 0–10, backoff_seconds ≥0이며 burst_seconds는 attempt timeout + backoff보다 커야 한다. 이 설정은 자동 무제한 재시도를 만들지 않는다.
 
@@ -62,7 +63,37 @@ Claude 계열의 미지정 model/effort는 **명시적인 null**로 둔다. 그 
 
 `request.json`/`prompt.txt`는 불변, `job.json`은 관측 상태다. 각 `attempts/attempt-NNNN/`에 기동 전 `launch.json`, 기동 후 PID/start ticks `process.json`, `stdout.log`, `stderr.log`, 첫 종료의 `exit.json`, 해석의 `native.json`을 남긴다. session ID는 실제 native 결과에서 얻는다. `.lock`은 동시 실행을 배제하고 남은 lock은 자동 삭제하지 않는다. PID/start ticks와 원시 종료를 확인한다. Linux 밖에서는 PID 재사용 구분이 제한된다.
 
-Codex capacity는 exit1·turn.failed·turn.completed 없음·모든 구조화 오류가 정확한 `Selected model is at capacity. Please try a different model.`(끝 마침표 없는 형태 포함)·유일한 같은 thread ID·열린 item 없음일 때만 인정한다. stderr·429·다른 문구를 capacity로 추정하지 않는다. backoff 뒤 같은 native 세션으로 이어가고 모델을 조용히 바꾸지 않는다. Claude의 실제 error_max_turns는 성공으로 바꾸지 않고 열린 budget checkpoint로 반환한다. 오류/권한 거부/정체성 불일치/timeout/사용자 취소는 별도 상태다. 취소는 대기와 기동 사이에도 적용하고 새 자식을 기동하지 않는다. 열린 item·실행 중 PID·기동/종료 불명 상태는 재실행하지 않는다.
+Codex capacity는 exit1·turn.failed·turn.completed 없음·모든 구조화 오류가 정확한 `Selected model is at capacity. Please try a different model.`(끝 마침표 없는 형태 포함)·유일한 같은 thread ID·열린 item 없음일 때만 인정한다. stderr·429·다른 문구를 capacity로 추정하지 않는다. backoff 뒤 같은 native 세션으로 이어가고 모델을 조용히 바꾸지 않는다. Claude의 실제 error_max_turns는 성공으로 바꾸지 않고 열린 budget checkpoint로 반환한다. 오류/권한 거부/정체성 불일치/timeout/취소는 별도 상태다. `canceled`는 실행기가 중단 신호(SIGINT·SIGTERM·abort)를 받았다는 관측이며, 그것이 사용자 중지인지는 호출자가 기록한다. 취소는 대기와 기동 사이에도 적용하고 새 자식을 기동하지 않는다. 열린 item·실행 중 PID·기동/종료 불명 상태는 재실행하지 않는다.
+
+**워커 질문.** native 성공 반환의 최종 텍스트만 본다. Claude는 result, Codex는 `-o` 파일을 보고, 그 파일이 없으면 마지막 `agent_message` item을 본다. 산문에서 질문을 추론하지 않는다. 줄 단위 JSON 객체 검사에 더해, 표식 문자열 tripwire를 둔다. 성공 반환이 아닌 실행의 질문 줄은 무시한다(그 실행은 이미 실패 상태다).
+- 질문 id와 prompt가 **둘 다** `<…>` 자리표시자인 줄은 인용된 틀로 보고 무시한다(마지막 줄이면 무효).
+- 질문이 하나이고, 비어 있지 않은 마지막 줄이며, `worker_status`가 정확히 `input-required`이고, `question.id`·`question.prompt`·`question.blocking`이 맞으면 상태는 `input_required`다. 이 상태는 열려 있으므로 receipt를 쓰지 않는다.
+- 다음은 조용한 성공이 아니라 종료 실패 `invalid_question`이다. 질문 시도를 성공으로 놓치지 않는 쪽으로 읽는다.
+  - 문자만 남겨 대소문자를 무시하면 `inputrequired`인데 철자가 정확히 `input-required`가 아닌 값(`input_required`·`INPUT-REQUIRED`·`input required` 등).
+  - `worker_status`와 `question` 객체를 함께 가졌지만 상태가 다른 값인 줄. 상태 키가 변형(`workerStatus`·`worker-status`, 질문 옆의 `status`)이거나, 상태 키 없이 `prompt`를 가진 `question` 객체만 있는 줄도 여기에 든다.
+  - 질문이 둘 이상인 경우.
+  - 질문 줄이 마지막 줄이 아닌 경우. 다만 그 뒤의 단독 ```` ``` ```` 한 줄은 허용한다.
+  - `question` 키가 `id`·`prompt`·`blocking` 셋이 아닌 경우, 또는 본문이 깨진 블록.
+  - 마지막 줄의 자리표시자 틀.
+  - 위 줄 단위 검사에 걸리지 않았어도 최종 텍스트에 input-required `worker_status` 표식이 남은 경우. 펜스·백틱·접두어·여러 줄 JSON이 여기에 해당한다.
+- `resume --answer`는 정확한 키 `question_id`·`question`·`answer`·`answered_utc`·`source`를 받는다.
+  - `question_id`는 대기 중인 질문의 ID와 같아야 한다. 호출자는 답이 그 질문에 해당하는지 뜻으로 확인한다. `question`은 비어 있지 않은 문자열이며, 실행기는 저장과 전달에 대기 중인 원문을 사용한다.
+  - `source`는 `user`, `answered_utc`는 UTC여야 한다.
+  - 하나라도 어긋나면 기동하지 않는다.
+- 통과한 답은 `turns/NNNN/answer.json`으로 먼저 고정한다.
+  - 고정은 임시 파일 뒤 배타적 링크로 원자적으로 한다. 고정 뒤 기록 전에 끊겨 같은 파일이 이미 있으면, 같은 내용은 채택하고 다른 내용이나 읽을 수 없는 파일은 거부한다. 덮어쓰지 않는다.
+  - 재시도는 같은 답 파일을 그대로 다시 쓴다. 다른 답이 꼭 필요하면 `receipt --close-open`으로 job을 닫고 새 job으로 간다.
+  - 질문 직후 답의 첫 전달은 대기 없이 기동한다. capacity로 실패한 뒤의 재전송은 일반 capacity backoff를 따른다.
+- 그 답을 실은 attempt가 capacity로 실패하면 답은 대기로 남는다. 그 뒤 `--answer` 없이 재개하면 원문을 다시 보낸다. 이때 `status`에는 `answer_recorded: true`가 나온다.
+- 이미 답이 기록됐거나 답이 필요 없는 상태에 `--answer`를 주면 거부한다.
+
+**receipt note.** `answers_recorded`(고정된 답 수)와 `answers_delivered`(native turn에 실제로 실린 답 수)를 따로 적는다. 종료까지 간 attempt가 하나라도 있으면 기동 실패로 끝난 job도 NOT_RUN이 아니라 FAIL이다.
+
+**권한 거부.** 거부는 Claude만 보고한다. Codex 이벤트는 거부를 담지 않으므로 그 수는 `UNREPORTED`(null)이며 0으로 적지 않는다.
+- 거부 수는 job 전체의 누적이다.
+- native 성공 반환으로 끝난 job에 누적 거부가 있으면 상태는 `returned_with_denials`다. receipt는 PASS이고, note에 누적 거부 수가 적힌다. attempt별 거부 목록은 `native.json`에 남는다.
+- 거부된 동작은 실행되지 않았다. 업무에 필요했는지는 호출자가 판정한다.
+- 성공 반환이 아닌 실행의 거부는 `permission_denied` 실패다.
 
 Claude JSON wrapper와 stream-json을 해석한다. 주 모델 근거는 stream의 system.init.model과 main assistant.message.model이며 synthetic/child/payload는 제외한다. wrapper modelUsage는 누적·자식 포함 가능성이 있어 주 모델로 승격하지 않는다. Codex는 thread/turn의 top-level model만 사용한다. 미보고는 UNVERIFIED/UNREPORTED, 기대가 없으면 NO_EXPECTATION이다. 보고된 주 모델이 고정 기대 집합을 벗어나면 MISMATCH다. effort는 관측하지 않으므로 요청값과 구분해 UNREPORTED로 둔다.
 

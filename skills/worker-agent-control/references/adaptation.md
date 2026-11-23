@@ -11,6 +11,10 @@
 
 2026-11-14 개정(v1.4.0, 과업 `inner-harness-agnostic-261114151405`): 이너 하네스 애그노스틱 정책에 따라 지휘자는 val_agent의 현재 이너 하네스(Codex 또는 Claude Code)다. 위 문단은 최초 설치 당시의 기록으로 보존한다. 정본은 `skills/worker-agent-control/`이고 각 하네스 발견 경로는 심볼릭 링크다.
 
+2026-11-18 개정(v1.5.0, 과업 `evs-rust-native-261118054736` 사용자 결정 U7): 워커 프로젝트 easy-vllm-simulator의 메인↔서브 A2A 평면을 읽기 전용으로 검토했다. 검토 대상은 `terraforming_node` `references/orchestration/a2a_relay.md`, relay의 `pending_hitl.json`과 `## 이어받기` 조립, 그리고 "답의 존재는 승인이 아니다"·"기술 feedback은 답이 아니다"·승인 대필 금지 규칙이다.
+- 다음 원칙을 이 스킬에 맞게 옮겼다: 질문 블록·답 원문 전사·같은 세션 재개, 답≠승인, 거부를 사건으로 다루기, 신호≠사용자 취소.
+- 워커 고유의 vLLM 리포트 스키마, 러너 사다리 회전, 서브 overlay 배달, 캠페인 셀 술어는 가져오지 않았다. 도메인 전용이거나 조용한 대체 금지·스킬 독립성 규칙과 충돌하기 때문이다.
+
 원본의 파일 기반 auth preflight 대신 CLI native auth status를 사용한다. 현재 인증·모델·권한·환경은 상속하며 HOME이나 CODEX_HOME을 다른 변수로 바꾸지 않는다. 원본의 일괄 dot-directory 제한 주장·고정 재시도 금지·기계적 grade 예산을 현재 Codex의 보편 규칙으로 복제하지 않았다. 권한과 재개는 실제 CLI·사용자 정책·워커 헌장이 우선한다.
 
 공식 문서(2026-11-03 실제 열람):

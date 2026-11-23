@@ -20,6 +20,36 @@
       "not_integrity"
     ]
   },
+  "reviewers": [
+    {
+      "role": "comment",
+      "guide": "references/comment-review.md",
+      "when": "always"
+    },
+    {
+      "role": "structure",
+      "guide": "references/structure-review.md",
+      "when": "always"
+    },
+    {
+      "role": "prose",
+      "guide": "references/prose-review.md",
+      "when": "prose_files"
+    },
+    {
+      "role": "integrity",
+      "guide": "references/integrity-review.md",
+      "when": "fix_type",
+      "fix_types": [
+        "hash-integrity"
+      ]
+    },
+    {
+      "role": "diff",
+      "guide": "references/structure-review.md",
+      "when": "changed"
+    }
+  ],
   "rules": [
     {
       "id": "RS-LINT-SUPPRESSION",

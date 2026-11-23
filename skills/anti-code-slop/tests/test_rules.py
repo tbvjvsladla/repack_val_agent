@@ -1,5 +1,8 @@
+import json
+import re
 import unittest
 
+import acceptance_spec as spec
 from support import sc
 
 
@@ -63,3 +66,30 @@ class RuleTable(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReviewerDeclarations(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.data = json.loads(sc.RULES_PATH.read_text())
+        cls.skill_md = (spec.SKILL_DIR / "SKILL.md").read_text()
+
+    def test_reviewer_declarations_consistent(self):
+        reviewers = self.data["reviewers"]
+        roles = [r["role"] for r in reviewers]
+        self.assertEqual(len(roles), len(set(roles)), "reviewer roles must be unique")
+        fix_types = {r["fix_type"] for r in self.data["rules"]}
+        for r in reviewers:
+            with self.subTest(role=r["role"]):
+                self.assertIn(r["when"], ("always", "prose_files", "fix_type", "changed"))
+                self.assertTrue((spec.SKILL_DIR / r["guide"]).is_file(), r["guide"])
+                self.assertIn(f"]({r['guide']})", self.skill_md, "SKILL.md must link the guide")
+                self.assertIn(f"`{r['role']}`", self.skill_md, "SKILL.md must name the role")
+                if r["when"] == "fix_type":
+                    self.assertTrue(r["fix_types"])
+                    self.assertLessEqual(set(r["fix_types"]), fix_types)
+
+    def test_skill_md_lists_every_fix_type(self):
+        section = self.skill_md.split("## 수정 유형", 1)[1].split("\n## ", 1)[0]
+        listed = re.findall(r"^\| `([a-z-]+)` \|", section, re.M)
+        self.assertEqual(sorted(listed), sorted({r["fix_type"] for r in self.data["rules"]}))
