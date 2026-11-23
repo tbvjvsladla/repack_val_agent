@@ -12,13 +12,13 @@ repack_val_agent는 코드베이스·스킬·MCP·플러그인 등의 **개선�
 
 여기서 분리하는 것은 **에이전트의 실행 맥락과 책임**입니다. 같은 종류의 CLI를 사용하는 별도 세션도 이 협업을 구성할 수 있습니다. 구체적인 역할 배치·위임·독립 검증 조건은 [작업수행규칙](rules/workflow.md)과 각 과업의 계획에 둡니다.
 
-워커 연결의 기반은 [worker-agent-control](skills/worker-agent-control/SKILL.md)입니다. [hermes-subagent-control-plane](https://github.com/tbvjvsladla/hermes-subagent-control-plane)을 기초로 이 프로젝트의 지휘 환경(Codex 또는 Claude Code 오케스트레이터)에 맞춰 적용했습니다. 워커별 작업 경로·실행 CLI·진입 지침을 구분하고, 연결 확인과 본작업 결과를 따로 검증합니다. 계보와 적용 차이는 [적용 기록](skills/worker-agent-control/references/adaptation.md)에 있습니다.
+워커 연결의 기반은 [worker-agent-control](skills/worker-agent-control/SKILL.md)입니다. 이 스킬은 [hermes-subagent-control-plane](https://github.com/tbvjvsladla/hermes-subagent-control-plane)을 바탕으로 Claude Code와 Codex 워커를 호출합니다. 워커별 작업 경로·실행 CLI·진입 지침을 구분하고, 연결 확인과 본작업 결과를 따로 검증합니다. 계보와 적용 차이는 [적용 기록](skills/worker-agent-control/references/adaptation.md)에 있습니다.
 
 ### 어떤 이너 하네스로도 같은 규칙
 
-이 저장소가 배포하는 것은 사람이 설계한 **아우터 하네스**(헌장·스킬·과업 문서 체계)입니다. 실제로 파일을 읽고 명령을 실행하는 **이너 하네스**(Codex, Claude Code)는 교체할 수 있는 실행 도구입니다. 정본은 하네스 중립 경로(`rules/`, `skills/`, `AGENTS.md`)에 두고, 각 하네스는 얇은 어댑터(`CLAUDE.md`, `.agents/skills`·`.claude/skills` 심볼릭 링크, 하네스별 설정)로 연결됩니다. 오케스트레이터도 워커도 어느 하네스든 맡을 수 있습니다. 하네스를 바꿔도 과업은 초기화되지 않으며, 과업 문서로 인계됩니다. 실행자는 항상 실제 값으로 기록하고, 대체 실행의 성공을 요청한 실행자의 성공으로 세지 않습니다. 자세한 내용은 [하네스규칙](rules/harness.md)을 참고하세요.
+이 저장소가 배포하는 것은 사람이 설계한 **아우터 하네스**(헌장·스킬·과업 문서 체계)입니다. Codex, Claude Code, Antigravity CLI(`agy`)는 이 저장소를 오케스트레이터 작업 공간으로 열 수 있는 **이너 하네스**입니다. 정본은 `rules/`, `skills/`, `AGENTS.md`에 둡니다. Codex와 Antigravity CLI는 `AGENTS.md`와 `.agents/skills/`의 심볼릭 링크를 공유합니다. Claude Code는 `CLAUDE.md`에서 `AGENTS.md`를 가져오고 `.claude/skills/`의 심볼릭 링크를 읽습니다. 하네스를 전환할 때는 과업 문서로 진행 상태를 넘기고 실제 실행자를 기록합니다. [하네스규칙](rules/harness.md) · [Antigravity 검색 경로](https://antigravity.google/docs/customization-discovery/)
 
-![가운데의 아우터 하네스(AGENTS.md, rules의 세 헌장, skills, docs의 작성 가이드, campaigns의 캠페인 규약)에 Codex와 Claude Code가 얇은 어댑터로 연결됩니다. 하네스를 바꿔도 과업은 과업 문서와 캠페인 인스턴스로 이어집니다.](assets/harness-adapters.svg)
+![Codex와 Antigravity CLI는 AGENTS.md와 .agents/skills 링크를 공유하고, Claude Code는 별도 어댑터를 통해 같은 아우터 하네스에 연결됩니다.](assets/harness-adapters.svg)
 
 ### 개선 대상은 두 곳에 둘 수 있습니다
 
@@ -62,7 +62,7 @@ repack_val_agent는 코드베이스·스킬·MCP·플러그인 등의 **개선�
 
 선택 가능한 수단 여섯 개는 **모두 꺼진 채 배포**합니다. 꺼진 스킬은 하네스가 발견하지 못하므로, 세션의 스킬 목록과 맥락에 올라오지 않습니다.
 
-**등록 방식.** 스킬의 정본 폴더는 늘 `skills/<name>/`에 있습니다. 하네스는 그 폴더를 직접 읽지 않고, 발견 폴더의 상대 심볼릭 링크로 찾습니다. Codex는 `.agents/skills/<name>`, Claude Code는 `.claude/skills/<name>`을 씁니다. 기반 도구와 harness2의 링크는 Git이 추적합니다. 선택 수단의 링크는 Git이 무시하며, 활성화 knob이 링크의 유무를 정합니다. `settings.json`과 `settings.local.json`처럼 knob 파일은 두 개입니다.
+**등록 방식.** 스킬의 정본은 `skills/<name>/`에 있습니다. Codex와 Antigravity CLI는 `.agents/skills/<name>`, Claude Code는 `.claude/skills/<name>`의 상대 심볼릭 링크로 찾습니다. 기반 도구와 harness2의 링크는 Git이 추적합니다. 선택 수단의 링크는 Git이 무시하며, 활성화 knob이 링크의 유무를 정합니다.
 
 | 파일 | 추적 | 내용 |
 |---|---|---|
@@ -85,9 +85,9 @@ python3 scripts/skill_activation.py disable deepeval-pack --apply
 ```
 
 - `skill-activation.local.yaml`에 `<name>: on|off`를 직접 적은 뒤 `sync --apply`를 돌려도 결과는 같습니다.
-- 스크립트는 의존성을 설치하지 않습니다. 사용자 설정(`~/.claude.json`, `~/.codex/`)의 MCP 등록도 바꾸지 않습니다.
-  - `enable`은 준비 단계와 MCP 등록 명령을 출력합니다. 사용자가 그 명령을 직접 실행합니다.
-  - `disable`은 남은 MCP 등록을 지우는 명령을 출력합니다. 꺼진 스킬의 MCP 등록이 남아 있으면 `check`가 실패합니다.
+- 의존성 설치와 MCP 등록은 사용자가 진행합니다.
+  - `enable`은 준비 단계와 하네스별 MCP 등록 방법을 출력합니다. Antigravity CLI는 출력의 `agy.config.mcpServers` 항목을 로컬 `.agents/mcp_config.json`에 병합하면 됩니다.
+  - `disable`은 남은 MCP 등록을 지우는 방법을 출력합니다. 검사 대상 설정에 꺼진 스킬의 MCP 등록이 남아 있으면 `check`가 실패합니다.
 - 바뀐 활성 상태는 하네스의 **새 세션**부터 반영됩니다. 하네스는 세션을 시작할 때 스킬을 찾기 때문입니다.
 
 **캠페인이 관리하는 방식.** 캠페인([campaigns/](campaigns/README.md))을 열고 닫을 때는 [progress-monitor](skills/progress-monitor/SKILL.md)의 실행기 `pm.py`가 활성화 스크립트를 부릅니다. progress-monitor는 특정 스킬의 이름을 알지 못합니다. 후보는 늘 공유 knob에서 읽습니다.
@@ -178,13 +178,13 @@ skills/<skill>/config.yaml    provider: anthropic
 
 | 경로 | 내용 |
 |---|---|
-| [AGENTS.md](AGENTS.md) | 모든 이너 하네스 공통 진입 지침(Codex가 직접 읽음) |
+| [AGENTS.md](AGENTS.md) | 모든 이너 하네스 공통 진입 지침(Codex·Antigravity CLI가 직접 읽음) |
 | [CLAUDE.md](CLAUDE.md) | Claude Code 진입 파일(`@AGENTS.md`) |
 | [rules/workflow.md](rules/workflow.md) | 역할·승인 범위·검증·중단과 재개 |
 | [rules/docs.md](rules/docs.md) | 의도 → 계획 → 수행 기록 → 검증 문서 연결 |
 | [rules/harness.md](rules/harness.md) | 이너 하네스 애그노스틱 정책과 어댑터 표 |
 | [skills/](skills/) | 재사용할 수 있는 스킬과 내부 검사(정본) |
-| `.agents/skills/`, `.claude/skills/` | Codex·Claude Code 스킬 발견용 디렉터리 심볼릭 링크 |
+| `.agents/skills/`, `.claude/skills/` | Codex·Antigravity CLI의 공유 발견 링크와 Claude Code의 발견 링크 |
 | `.claude/settings.json` | Claude Code용 공통 금지선(deny/ask). 자율도는 로컬 설정 |
 | [assets/](assets/) | README의 SVG 구조도·하네스 어댑터·도구 구성도·개선 루프·캠페인 gate |
 | [docs/](docs/) | 역할별 doc_gen_guide.md: 문서의 용도·작성법·예시 |
@@ -202,6 +202,8 @@ skills/<skill>/config.yaml    provider: anthropic
 필요한 스킬만 가져오거나 이 저장소를 지휘자 작업 공간으로 사용할 수 있습니다. 헌장과 문서 배치는 적용할 프로젝트의 기존 규칙을 검토하고 채택합니다. 이 저장소를 복사한 사실이 대상 프로젝트의 수정·실행 권한을 부여하지는 않습니다.
 
 기반 CLI는 Node.js 24 이상과 Python 3를 사용합니다. 외부 워커를 호출하려면 사용할 Claude Code 또는 Codex CLI를 별도로 준비하고 인증해야 합니다. 개별 수단 도구의 추가 의존성은 해당 스킬의 설치 지침을 따릅니다.
+
+Antigravity CLI로 시작하려면 저장소 루트에서 `agy --mode plan`을 실행하고 `/skills`에서 `wiki-desk` 등 프로젝트 스킬을 확인합니다. `/wiki-desk`처럼 이름을 입력해 스킬을 호출할 수 있습니다. 자동화 실행에는 `agy -p '<요청>' --output-format stream-json`을 쓸 수 있으며, 실행 모드와 도구 권한은 해당 작업의 승인 범위에 맞춰 지정합니다. [Antigravity 스킬](https://antigravity.google/docs/skills/) · [Headless 모드](https://antigravity.google/docs/cli/headless/)
 
 대상 프로젝트의 기존 규칙을 확인하고 목표·허용 수정 범위·완료 기준부터 정합니다.
 
@@ -229,7 +231,7 @@ node skills/wiki-desk/src/cli.ts check
 node --test skills/harness2/tests/experiment.test.mjs
 ```
 
-캠페인의 틀과 실행기는 다음으로 확인합니다. 종료 훅을 쓰려면 [훅 설치 안내](skills/progress-monitor/references/hooks.md)의 예시를 하네스별 로컬 설정에 넣습니다.
+캠페인의 틀과 실행기는 다음으로 확인합니다. Codex·Claude Code의 캠페인 종료 훅은 하네스별 로컬 설정을 사용합니다. [훅 설치 안내](skills/progress-monitor/references/hooks.md)
 
 ```bash
 python3 scripts/check_campaign.py

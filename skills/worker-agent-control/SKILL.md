@@ -1,15 +1,15 @@
 ---
 name: worker-agent-control
-description: "val_agent의 오케스트레이터(현재 이너 하네스: Codex 또는 Claude Code)가 연결된 워커 프로젝트에게 작업·질의·검토를 위임하거나 응답을 중계할 때 사용한다. 기본 워커는 Claude Code이며 사용자가 Codex를 워커로 명시하면 Codex CLI를 호출한다. 실제 대상 CLI의 연결·지침·권한·산출물을 확인한다. val_agent 자체의 단순 파일 조회에는 사용하지 않는다."
+description: "val_agent의 오케스트레이터가 연결된 워커 프로젝트에게 작업·질의·검토를 위임하거나 응답을 중계할 때 사용한다. 기본 워커는 Claude Code이며 사용자가 Codex를 워커로 명시하면 Codex CLI를 호출한다. 실제 대상 CLI의 연결·지침·권한·산출물을 확인한다. val_agent 자체의 단순 파일 조회에는 사용하지 않는다."
 license: MIT
 metadata:
   version: "1.5.0"
-  host: "harness-neutral project-local (Codex, Claude Code)"
+  host: "harness-neutral project-local"
 ---
 
 # 워커 에이전트 제어
 
-이 스킬을 읽는 **val_agent의 현재 이너 하네스(Codex 또는 Claude Code)가 지휘자**다. 지휘자 하네스와 워커 CLI는 서로 독립이며 같은 종류여도 된다. 실제 워커 CLI는 **기본 Claude Code**, 사용자가 워커로 Codex를 요청하면 **Codex CLI**다. “너가 지휘해”처럼 지휘자를 가리키는 말은 워커 선택 변경이 아니다. 선택이 충돌할 때만 확인한다. 실패했다고 다른 CLI나 지휘자 직접 실행으로 조용히 대체하지 않는다.
+이 스킬을 읽는 **val_agent의 현재 이너 하네스가 지휘자**다. 지휘자 하네스와 워커 CLI는 서로 독립이며 같은 종류여도 된다. 실제 워커 CLI는 **기본 Claude Code**, 사용자가 워커로 Codex를 요청하면 **Codex CLI**다. “너가 지휘해”처럼 지휘자를 가리키는 말은 워커 선택 변경이 아니다. 선택이 충돌할 때만 확인한다. 실패했다고 다른 CLI나 지휘자 직접 실행으로 조용히 대체하지 않는다.
 
 대상은 로컬 `config.json`의 `workspace` 또는 명시한 `--workspace`다. 로컬 설정이 없으면 [config.example.json](config.example.json)의 기본값을 읽으며, 경로를 지정하기 전까지 연결 확인을 거부한다. 대상의 진입 파일 구성이 예시와 다르면 로컬 설정의 `context_files`에 실제 파일을 지정한다. 워커 브랜치는 현재 체크아웃을 사용하며 자동 전환하지 않는다. 이 스킬의 위치와 워커의 작업 디렉터리를 혼동하지 않는다. 참조·스크립트 경로는 **이 SKILL.md가 있는 디렉터리**에서 해석한다. Hermes의 `skill_view`, `terminal`, `process`, `HERMES_SKILL_DIR`는 필요 없다.
 

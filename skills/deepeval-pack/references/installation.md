@@ -9,7 +9,7 @@ python3 scripts/skill_activation.py enable deepeval-pack           # 무엇이 �
 python3 scripts/skill_activation.py enable deepeval-pack --apply   # 로컬 knob on, 링크 2개
 ```
 
-`enable`은 아래 준비 단계와 MCP 등록 명령을 출력한다. 명령은 출력만 하고 실행하지 않는다. 끌 때는 `disable deepeval-pack --apply`로 로컬 knob을 off로 바꾸고 링크를 지운다. config·프로필·키·`.venv`는 남는다. MCP 등록은 따로 해제하며, 등록이 남아 있으면 `python3 scripts/skill_activation.py check`가 실패하고 해제 명령을 알려 준다.
+`enable`은 아래 준비 단계와 MCP 등록 방법을 출력한다. 설치와 등록은 사용자가 진행한다. 끌 때는 `disable deepeval-pack --apply`로 로컬 knob을 off로 바꾸고 링크를 지운다. config·프로필·키·`.venv`는 남는다. MCP 등록은 따로 해제하며, 검사 대상 설정에 등록이 남아 있으면 `python3 scripts/skill_activation.py check`가 실패하고 해제 방법을 알려 준다.
 
 ## 의존성
 
@@ -51,6 +51,8 @@ Claude Code는 로컬 범위로 등록한다(사용자 설정에 기록되므로
 ```bash
 claude mcp add --scope local deepeval -- <project>/skills/deepeval-pack/.venv/bin/python -B <project>/skills/deepeval-pack/scripts/run.py serve
 ```
+
+Antigravity CLI는 로컬 `.agents/mcp_config.json`을 읽는다. `enable` 출력에서 `mcp_register.deepeval-pack.agy.config`의 `mcpServers.deepeval` 항목을 기존 `mcpServers`에 병합한다. 파일이 없으면 `agy.config` 값 전체를 저장한다. 새 세션의 `/mcp`에서 서버를 확인한다. [Antigravity CLI MCP](https://antigravity.google/docs/mcp/)
 
 등록 후 새 세션에서 실제 도구 발견과 deepeval_status/deepeval_validate 호출을 확인한다. 현재 실행 중인 호스트에 파일 등록만으로 즉시 도구가 추가됐다고 주장하지 않는다.
 

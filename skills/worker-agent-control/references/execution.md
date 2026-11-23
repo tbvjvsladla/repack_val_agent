@@ -102,6 +102,6 @@ python3 <skill-dir>/scripts/run_codex.py --request request.json --resume-run <sa
 
 인증/권한·세션 불일치·불완전 이벤트·timeout/신호/사용자 중지는 자동 capacity 재시도하지 않는다. 별도 상태를 회수하고 기존 복구 규약을 따른다. 실제 모델/effort가 native 이벤트에 보고되지 않으면 요청값을 관측값으로 채우지 않는다. 모델 전환은 기존 승인 범위와 별도 귀속을 확인한 새 요청으로 수행한다.
 
-대화형 오케스트레이터 호스트(Codex·Claude Code)가 자기 응답 생성을 중단한 경우, 이 로컬 CLI 실행기가 호스트의 모델 선택을 직접 바꾸지는 못한다. 과업 문서·Git·native receipt의 체크포인트로 재개하며, 지원되지 않는 서버 API/전역 설정으로 우회하지 않는다.
+대화형 오케스트레이터 호스트가 자기 응답 생성을 중단한 경우, 과업 문서·Git·native receipt의 체크포인트로 재개한다. 호스트의 모델 선택은 해당 호스트가 제공하는 제어 수단을 따른다.
 
 자체 fixture 검사는 `python3 <skill-dir>/scripts/selftest_run_codex.py`다. 실제 subprocess로 capacity→동일 세션→성공, 소진→다음 묶음 재개, 비capacity·세션 불일치·요청 변경·timeout을 검사하며 실제 모델 가용성 근거로 쓰지 않는다.

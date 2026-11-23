@@ -24,6 +24,8 @@
 # Machine-specific settings; the public export also excludes tracked copies.
 /.codex/config.toml
 /.codex/hooks.json
+/.agents/hooks.json
+/.agents/mcp_config.json
 /skills/worker-agent-control/config.json
 
 # Project keys and Judge profiles live in envs/; only the examples are tracked.

@@ -6,25 +6,25 @@ val_agent가 배포하는 것은 **아우터 하네스**다. 사람이 설계한
 
 정본은 하네스 중립 경로에만 둔다. 하네스별 경로에는 진입 파일, 발견용 링크, 하네스 고유 설정만 둔다. 정본 내용을 하네스별로 복제하지 않는다.
 
-| 이음매 | 정본 | Codex 어댑터 | Claude Code 어댑터 |
-|---|---|---|---|
-| 진입 지침 | `AGENTS.md` | `AGENTS.md`를 자동으로 읽는다(import 문법 없음) | `CLAUDE.md` = `@AGENTS.md` |
-| 헌장 | `rules/*.md` | AGENTS.md의 지시에 따라 읽는다 | 같음 |
-| 스킬 | `skills/<name>/` | `.agents/skills/<name>` 디렉터리 심볼릭 링크 | `.claude/skills/<name>` 디렉터리 심볼릭 링크 |
-| 스킬 호출 | SKILL.md의 `name`·`description` | `$name`, `/skills`, 자동 선택 | `/name`, 자동 선택 |
-| 하네스 고유 메타데이터 | 없음 | `skills/<name>/agents/openai.yaml` | 없음 |
-| 권한·자율도 | 공통 금지선(아래) | `.codex/config.toml`(로컬, Git 제외), 사용자 설정 | `.claude/settings.json`(금지선만 추적), `.claude/settings.local.json`(로컬 allow 목록), 자율 모드는 사용자 설정이나 실행 플래그 |
-| 로컬 훅 | 스킬의 참조 문서에 설치 예시만 둔다 | `.codex/hooks.json`(로컬, Git 제외) | `.claude/settings.local.json`(로컬, Git 제외) |
-| 서브에이전트 | 스킬은 "호스트의 서브에이전트 기능"이라는 의도만 적는다 | 내장 서브에이전트, `.codex/agents/*.toml` | Agent 도구, `.claude/agents/*.md` |
-| headless 실행 | worker-agent-control의 provider별 문법 | `codex exec --json` | `claude -p --output-format json\|stream-json` |
+| 이음매 | 정본 | Codex 어댑터 | Claude Code 어댑터 | Antigravity CLI 어댑터 |
+|---|---|---|---|---|
+| 진입 지침 | `AGENTS.md` | `AGENTS.md` 자동 발견 | `CLAUDE.md` = `@AGENTS.md` | `AGENTS.md` 자동 발견 |
+| 헌장 | `rules/*.md` | AGENTS.md의 지시에 따라 읽는다 | 같음 | 같음 |
+| 스킬 | `skills/<name>/` | `.agents/skills/<name>` 디렉터리 심볼릭 링크 | `.claude/skills/<name>` 디렉터리 심볼릭 링크 | Codex와 `.agents/skills/<name>` 심볼릭 링크 공유 |
+| 스킬 호출 | SKILL.md의 `name`·`description` | `$name`, `/skills`, 자동 선택 | `/name`, 자동 선택 | `/name`, `/skills`, 자동 선택 |
+| 하네스 고유 메타데이터 | 없음 | `skills/<name>/agents/openai.yaml` | 없음 | 없음 |
+| 권한·자율도 | 공통 금지선(아래) | `.codex/config.toml`(로컬, Git 제외), 사용자 설정 | `.claude/settings.json`(금지선만 추적), `.claude/settings.local.json`(로컬 allow 목록), 자율 모드는 사용자 설정이나 실행 플래그 | `~/.gemini/antigravity-cli/settings.json`(사용자 설정), `--mode`, `--settings` |
+| 로컬 훅 | 스킬의 참조 문서에 설치 예시만 둔다 | `.codex/hooks.json`(로컬, Git 제외) | `.claude/settings.local.json`(로컬, Git 제외) | `.agents/hooks.json`(로컬, Git 제외). 캠페인 종료 훅 연동은 Codex·Claude Code용 |
+| 서브에이전트 | 스킬은 "호스트의 서브에이전트 기능"이라는 의도만 적는다 | 내장 서브에이전트, `.codex/agents/*.toml` | Agent 도구, `.claude/agents/*.md` | 내장 서브에이전트, `.agents/agents/*.md` |
+| headless 진입 | 이너 하네스의 자체 실행 문법 | `codex exec --json` | `claude -p --output-format json\|stream-json` | `agy -p --output-format json\|stream-json` |
 
-스킬과 헌장에는 "서브에이전트에 맡긴다", "명령을 워커 루트에서 실행한다"처럼 의도만 적는다. 특정 하네스의 도구 이름이 필요하면 지원하는 하네스의 예시를 함께 적는다. 실제 CLI 문법은 해당 스킬의 provider 구현과 참조 문서에만 둔다. 새 하네스를 붙일 때는 이 표에 어댑터를 추가하고, 스킬 본문은 다시 쓰지 않는다.
+스킬과 헌장에는 "서브에이전트에 맡긴다", "명령을 워커 루트에서 실행한다"처럼 의도만 적는다. 특정 하네스의 도구 이름이 필요하면 지원하는 하네스의 예시를 함께 적는다. 워커 호출 문법은 해당 스킬의 provider 구현과 참조 문서에 둔다. 새 하네스를 붙일 때는 이 표에 어댑터를 추가한다. 스킬 본문은 공통 정본에 둔다.
 
 ## 역할은 호출 형태로 정한다
 
-- 사용자가 띄운 대화 세션에서 동작하면 val_agent는 **오케스트레이터**다. 오케스트레이터는 Codex든 Claude Code든 맡을 수 있다.
+- 사용자가 띄운 대화 세션에서 동작하면 val_agent는 **오케스트레이터**다. Codex, Claude Code, Antigravity CLI에서 이 역할을 맡을 수 있다.
 - 다른 에이전트가 headless로 val_agent를 호출하면 val_agent는 그 호출자의 **워커**다. 이때는 호출자의 요청과 승인 범위를 따른다. 산출물은 과업 문서와 실행 근거로 회수할 수 있어야 한다. 워커 모드의 구체적인 receipt 계약은 실제 호출자가 생길 때 정한다.
-- 오케스트레이터 하네스와 그가 부리는 워커 CLI는 서로 독립이다. 같은 종류여도 된다.
+- 오케스트레이터 하네스와 그가 부리는 워커 CLI는 서로 독립이다. worker-agent-control의 워커 provider는 Claude Code와 Codex다.
 
 ## 실행자 기록과 대체 금지
 
@@ -50,6 +50,8 @@ val_agent가 배포하는 것은 **아우터 하네스**다. 사람이 설계한
 - 작업 공간 밖 쓰기: 워커 저장소, 사용자 전역 설정(`~/.codex`, `~/.claude`), 인증 정보.
 
 Claude Code는 `.claude/settings.json`과 `.claude/settings.local.json`에 적힌 `bypassPermissions`·`auto` 모드를 무시한다. 이 모드는 사용자 설정(`~/.claude/settings.json`)이나 실행 플래그(`--permission-mode`)로만 켤 수 있다. 따라서 추적하는 `.claude/settings.json`에는 위 금지선의 deny/ask 규칙만 둔다. 로컬 allow 목록은 `.claude/settings.local.json`에, 자율 모드는 사용자 설정이나 실행 플래그에 둔다. Codex의 프로젝트 `.codex/config.toml`은 trusted 프로젝트에서만 적용되며, 이 저장소에서는 로컬 파일로 둔다.
+
+Antigravity CLI 세션에서 권한을 확인하며 시작하려면 `agy --mode plan`으로 열고, 구현은 승인 범위에 맞는 모드에서 이어 간다. 표준 워크스페이스 MCP 설정은 `.agents/mcp_config.json`에 두며 Git에서 제외한다. 위 승인 요구는 native 모드와 무관하게 적용한다. [Antigravity 권한](https://antigravity.google/docs/cli-permissions) · [Antigravity 설정](https://antigravity.google/docs/cli-settings)
 
 스킬이 외부 LLM을 부를 때 쓰는 API 키와 Judge 프로필은 프로젝트 루트의 `envs/`에 둔다. 키는 `envs/.env`에, 프로필은 `envs/<name>_profile.yaml`(model과 생성 설정, 키 없음)에 둔다. `envs/`에서는 예시(`envs/.env.example`, `envs/profile.example.yaml`)만 추적하고, 실제 키·프로필 파일은 Git·공개본에 넣지 않는다. 이미 설정된 프로세스 환경변수가 파일보다 먼저다. 키 값을 문서·로그·설정·응답에 옮겨 적지 않는다.
 

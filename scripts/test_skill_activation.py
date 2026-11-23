@@ -140,11 +140,53 @@ class SkillActivation(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("delete the [mcp_servers.betasrv] table from $CODEX_HOME/config.toml", out["problems"][0])
 
+    def test_check_detects_mcp_registration_for_disabled_skill_in_antigravity(self):
+        self.root.run("sync", "--apply")
+        configs = (
+            (self.root.path / ".agents/mcp_config.json", ".agents/mcp_config.json"),
+            (self.root.home / ".gemini/config/mcp_config.json", "~/.gemini/config/mcp_config.json"),
+        )
+        contents = json.dumps({"mcpServers": {"betasrv": {"command": "x"}}})
+        for path, label in configs:
+            with self.subTest(config=label):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(contents, encoding="utf-8")
+                hint = f"remove mcpServers.betasrv from {label}"
+                code, out = self.root.run("check")
+                self.assertEqual(code, 1, out)
+                self.assertTrue(any(hint in problem for problem in out["problems"]))
+                code, out = self.root.run("disable", "beta", "--apply")
+                self.assertEqual(code, 0, out)
+                self.assertEqual(out["mcp_remove"], [hint])
+                self.assertEqual(path.read_text(encoding="utf-8"), contents)
+                path.unlink()
+        self.assertEqual(self.root.run("check")[0], 0)
+
+    def test_antigravity_empty_config_has_no_mcp_registrations(self):
+        self.root.run("sync", "--apply")
+        config = self.root.home / ".gemini/config/mcp_config.json"
+        config.parent.mkdir(parents=True)
+        config.touch()
+        self.assertEqual(self.root.run("check")[0], 0)
+        config.write_text("{", encoding="utf-8")
+        code, out = self.root.run("check")
+        self.assertEqual(code, 1, out)
+        self.assertTrue(any("cannot read ~/.gemini/config/mcp_config.json" in p for p in out["problems"]))
+
     def test_enable_prints_mcp_register_and_setup(self):
         code, out = self.root.run("enable", "beta", "--apply")
         self.assertEqual(code, 0, out)
         self.assertIn("claude mcp add --scope local betasrv --", out["mcp_register"]["beta"]["claude"])
         self.assertIn("[mcp_servers.betasrv]", out["mcp_register"]["beta"]["codex"])
+        self.assertEqual(out["mcp_register"]["beta"]["agy"], {
+            "path": ".agents/mcp_config.json",
+            "config": {"mcpServers": {"betasrv": {
+                "command": str(self.root.path / "skills/beta/run"),
+                "args": ["serve"],
+                "cwd": str(self.root.path),
+            }}},
+        })
+        self.assertFalse((self.root.path / ".agents/mcp_config.json").exists())
         self.assertEqual(self.root.linked("beta"), [True, True])
         code, out = self.root.run("enable", "alpha")
         self.assertEqual(out["mode"], "dry-run")

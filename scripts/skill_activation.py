@@ -29,9 +29,9 @@ turned on (`enabled`) and those already on when it opened (`pre_existing`). Clos
 turns off only the `enabled` skills that are still on.
 
 MCP registrations are never written. For an on skill with an `mcp` entry the script
-prints the registration commands; `check` fails while an off skill is still registered
-and prints the removal commands. It reads ~/.claude.json, <root>/.mcp.json,
-<root>/.codex/config.toml and ~/.codex/config.toml (HOME decides ~).
+prints the registration instructions; `check` fails while an off skill is still registered
+and prints removal instructions. It reads Claude Code, Codex and Antigravity CLI's
+standard user and workspace MCP configuration files.
 
 Output is JSON. Exit codes: 0 ok, 1 a check failed or the request was refused,
 2 usage error or an unreadable knob or record.
@@ -53,6 +53,8 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 ADAPTER_DIRS = (".agents/skills", ".claude/skills")
 SHARED = "skill-activation.yaml"
+AGY_PROJECT_MCP = ".agents/mcp_config.json"
+AGY_USER_MCP = ".gemini/config/mcp_config.json"
 LOCAL = "skill-activation.local.yaml"
 RECORD = "activation.json"
 NAME = re.compile(r"^[a-z0-9][a-z0-9-]*$")
@@ -258,12 +260,17 @@ def mcp_registrations(root: Path) -> tuple[dict[str, list[str]], list[str]]:
             add(project.get("mcpServers"), "~/.claude.json (local)")
         except (OSError, ValueError, AttributeError):
             unreadable.append("~/.claude.json")
-    project_mcp = root / ".mcp.json"
-    if project_mcp.is_file():
-        try:
-            add(json.loads(project_mcp.read_text(encoding="utf-8")).get("mcpServers"), ".mcp.json (project)")
-        except (OSError, ValueError, AttributeError):
-            unreadable.append(".mcp.json")
+    for path, where in ((root / ".mcp.json", ".mcp.json (project)"),
+                        (root / AGY_PROJECT_MCP, f"{AGY_PROJECT_MCP} (project)"),
+                        (home() / AGY_USER_MCP, f"~/{AGY_USER_MCP} (user)")):
+        if path.is_file():
+            try:
+                config_text = path.read_text(encoding="utf-8")
+                if path.name == "mcp_config.json" and not config_text:
+                    continue  # Antigravity CLI treats an empty file as no registrations.
+                add(json.loads(config_text).get("mcpServers"), where)
+            except (OSError, ValueError, AttributeError):
+                unreadable.append(where.split(" ", 1)[0])
     codex_home = os.environ.get("CODEX_HOME")
     codex_user = Path(codex_home) if codex_home else home() / ".codex"
     codex_user_label = "$CODEX_HOME/config.toml" if codex_home else "~/.codex/config.toml"
@@ -290,7 +297,13 @@ def register_commands(root: Path, shared: dict, name: str) -> dict:
         "claude": f"claude mcp add --scope local {server} -- {shlex.join(command)}",
         "codex": (f"[mcp_servers.{server}]\ncommand = {json.dumps(command[0])}\nargs = [{toml_args}]\n"
                   f"cwd = {json.dumps(str(root.resolve()))}"),
-        "note": "a person runs this; a running session picks it up after a restart",
+        "agy": {
+            "path": AGY_PROJECT_MCP,
+            "config": {"mcpServers": {
+                server: {"command": command[0], "args": command[1:], "cwd": str(root.resolve())},
+            }},
+        },
+        "note": "a person registers it; for agy, merge mcpServers into the specified file and start a new session",
     }
 
 
@@ -303,6 +316,8 @@ def remove_commands(server: str, places: list[str]) -> list[str]:
             hints.append(f"claude mcp remove --scope user {server}")
         elif where.startswith(".mcp.json"):
             hints.append(f"claude mcp remove --scope project {server}")
+        elif where in (f"{AGY_PROJECT_MCP} (project)", f"~/{AGY_USER_MCP} (user)"):
+            hints.append(f"remove mcpServers.{server} from {where.split(' ')[0]}")
         else:
             hints.append(f"delete the [mcp_servers.{server}] table from {where.split(' ')[0]}")
     return hints
