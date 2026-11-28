@@ -15,6 +15,8 @@
 - 다음 원칙을 이 스킬에 맞게 옮겼다: 질문 블록·답 원문 전사·같은 세션 재개, 답≠승인, 거부를 사건으로 다루기, 신호≠사용자 취소.
 - 워커 고유의 vLLM 리포트 스키마, 러너 사다리 회전, 서브 overlay 배달, 캠페인 셀 술어는 가져오지 않았다. 도메인 전용이거나 조용한 대체 금지·스킬 독립성 규칙과 충돌하기 때문이다.
 
+2026-11-28 개정(v1.6.0, 과업 `worker-profile-restore-261128174721`): 과업 `three-worker-connection-261106101317`(v1.2.0)에서 넣은 여러 워커 프로필(`workers`, `--worker`, `--config`, `selftest_discover.py`)이 공개 정본 `skills/`로 옮겨지지 않아, 그 형식의 로컬 설정에서 discover.py가 KeyError로 멈췄다. 1.5.0 위에 다시 넣었다. 단일 설정·예시 대체·경로 지정 전 거부는 1.5.0대로 두고, `claude_discovery_max_turns`는 Claude discovery에서만 요구한다. 공개본 생성기의 워커별 경로 가리기도 함께 복원했다.
+
 원본의 파일 기반 auth preflight 대신 CLI native auth status를 사용한다. 현재 인증·모델·권한·환경은 상속하며 HOME이나 CODEX_HOME을 다른 변수로 바꾸지 않는다. 원본의 일괄 dot-directory 제한 주장·고정 재시도 금지·기계적 grade 예산을 현재 Codex의 보편 규칙으로 복제하지 않았다. 권한과 재개는 실제 CLI·사용자 정책·워커 헌장이 우선한다.
 
 공식 문서(2026-11-03 실제 열람):

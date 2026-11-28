@@ -1,9 +1,9 @@
 ---
 name: worker-agent-control
-description: "val_agent의 오케스트레이터가 연결된 워커 프로젝트에게 작업·질의·검토를 위임하거나 응답을 중계할 때 사용한다. 기본 워커는 Claude Code이며 사용자가 Codex를 워커로 명시하면 Codex CLI를 호출한다. 실제 대상 CLI의 연결·지침·권한·산출물을 확인한다. val_agent 자체의 단순 파일 조회에는 사용하지 않는다."
+description: "val_agent의 오케스트레이터가 연결된 워커 프로젝트에게 작업·질의·검토를 위임하거나 응답을 중계할 때 사용한다. 기본 워커는 Claude Code이며 사용자가 Codex를 워커로 명시하면 Codex CLI를 호출한다. 여러 워커는 workspace·실행기·진입 지침을 프로필로 구분하며, 실제 대상 CLI의 연결·지침·권한·산출물을 확인한다. val_agent 자체의 단순 파일 조회에는 사용하지 않는다."
 license: MIT
 metadata:
-  version: "1.5.0"
+  version: "1.6.0"
   host: "harness-neutral project-local"
 ---
 
@@ -11,26 +11,40 @@ metadata:
 
 이 스킬을 읽는 **val_agent의 현재 이너 하네스가 지휘자**다. 지휘자 하네스와 워커 CLI는 서로 독립이며 같은 종류여도 된다. 실제 워커 CLI는 **기본 Claude Code**, 사용자가 워커로 Codex를 요청하면 **Codex CLI**다. “너가 지휘해”처럼 지휘자를 가리키는 말은 워커 선택 변경이 아니다. 선택이 충돌할 때만 확인한다. 실패했다고 다른 CLI나 지휘자 직접 실행으로 조용히 대체하지 않는다.
 
-대상은 로컬 `config.json`의 `workspace` 또는 명시한 `--workspace`다. 로컬 설정이 없으면 [config.example.json](config.example.json)의 기본값을 읽으며, 경로를 지정하기 전까지 연결 확인을 거부한다. 대상의 진입 파일 구성이 예시와 다르면 로컬 설정의 `context_files`에 실제 파일을 지정한다. 워커 브랜치는 현재 체크아웃을 사용하며 자동 전환하지 않는다. 이 스킬의 위치와 워커의 작업 디렉터리를 혼동하지 않는다. 참조·스크립트 경로는 **이 SKILL.md가 있는 디렉터리**에서 해석한다. Hermes의 `skill_view`, `terminal`, `process`, `HERMES_SKILL_DIR`는 필요 없다.
+대상 설정은 로컬 `config.json` 또는 `--config <파일>`에서 읽는다. 로컬 설정이 없으면 [config.example.json](config.example.json)을 읽으며, 경로를 지정하기 전까지 연결 확인을 거부한다. 명시한 `--config`가 없으면 예시로 대체하지 않고 거부한다. 실제 경로가 든 `config.json`은 Git·공개본에서 제외한다.
+
+- **여러 워커:** `workers` 객체에 이름별 `workspace`·`default_provider`·`context_files`를 두고(공통 예산은 최상위에, 프로필 값이 우선) `--worker <이름>`으로 명시 선택한다. 첫 워커를 자동 선택하지 않는다. 미등록 이름, 프로필의 provider·workspace와 다른 `--provider`·`--workspace`는 native 실행 전에 거부한다. 사용자가 정한 워커별 CLI를 지키며 다른 실행기로 조용히 대체하지 않는다.
+- **단일 대상:** 최상위 `workspace`·`default_provider`·`context_files`를 쓰고, 경로는 `--workspace`, 실행기는 `--provider`로 바꿀 수 있다. 대상의 진입 파일 구성이 예시와 다르면 `context_files`에 실제 파일을 지정한다.
+
+```json
+{"discovery_timeout_seconds": 300, "claude_discovery_max_turns": 24,
+ "workers": {"builder": {"workspace": "/path/to/builder_project", "default_provider": "claude", "context_files": ["CLAUDE.md"]},
+             "reporter": {"workspace": "/path/to/reporter_project", "default_provider": "codex", "context_files": ["AGENTS.md"]}}}
+```
+
+워커 브랜치는 현재 체크아웃을 사용하며 자동 전환하지 않는다. 이 스킬의 위치와 워커의 작업 디렉터리를 혼동하지 않는다. 참조·스크립트 경로는 **이 SKILL.md가 있는 디렉터리**에서 해석한다. Hermes의 `skill_view`, `terminal`, `process`, `HERMES_SKILL_DIR`는 필요 없다.
 
 ## 연결 확인
 
 호스트 명령 실행 도구의 작업 디렉터리를 워커 루트로 명시한다(예: Codex `exec_command`의 `workdir`, Claude Code Bash에서 워커 루트로 `cd`한 단일 명령). `scripts/discover.py`는 같은 작업 디렉터리에서 `subprocess`로 실제 CLI를 실행한다. 현재 HOME·CODEX_HOME·CLAUDE_CONFIG_DIR·인증·모델 설정을 상속하며 자격증명을 출력하거나 복사하지 않는다.
 
 1. 대상의 `AGENTS.md`/`CLAUDE.md`와 그 문서가 지시하는 규칙을 직접 읽는다. 대상의 스킬은 그 정본 경로에서 읽는다. Agent Card가 있으면 capability 자료로 읽되 승인·정체성의 대체물로 취급하지 않는다. **카드가 없으면 부재를 밝히고 실제 진입 지침으로 확인한다.** 카드나 하네스 값을 만들어내지 않는다.
-2. 아래 연결 검증을 선택한 CLI로 실행한다. `--output-dir`는 **워커 밖의 새 경로**여야 한다. 스크립트 기본값은 config.json에서 읽으며 `--provider codex`는 명시 선택이다.
+2. 아래 연결 검증을 선택한 CLI로 실행한다. `--output-dir`는 **워커 밖의 새 경로**여야 한다. 스크립트 기본값은 config.json에서 읽는다. `workers` 설정에서는 `--worker`가 필수이고 프로필의 provider를 쓴다(Codex 프로필은 `codex exec`, Claude 프로필은 `claude -p`). 단일 설정에서 `--provider codex`는 명시 선택이다.
 
    ```bash
    python3 <skill-dir>/scripts/discover.py --output-dir <val_agent>/temp/worker-control/<새-attempt>
    python3 <skill-dir>/scripts/discover.py --provider codex --output-dir <val_agent>/temp/worker-control/<새-attempt>
+   python3 <skill-dir>/scripts/discover.py --worker <워커명> --output-dir <val_agent>/temp/worker-control/<새-attempt>
    ```
 
-3. `receipt.json`에서 native 인증 사전점검, 실제 실행 여부, 종료코드, 출력 검증, workspace/provider/branch/진입문서 일치, Git 전후 비교를 확인한다. `discovery_verified`만 해당 호출의 연결 성공이다. **본작업 완료가 아니다.** Git 비교는 ignored 파일과 CLI 사용자 영역 기록까지 무변경임을 증명하지 않는다.
+3. `receipt.json`에서 워커명(`worker`)·읽은 설정(`config_path`), native 인증 사전점검, 실제 실행 여부, 종료코드, 출력 검증, workspace/provider/branch/진입문서 일치, Git 전후 비교를 확인한다. `discovery_verified`만 해당 호출의 연결 성공이다. **본작업 완료가 아니다.** Git 비교는 ignored 파일과 CLI 사용자 영역 기록까지 무변경임을 증명하지 않는다.
 4. 실패하면 원문 로그·실패코드·부분 결과를 확인한다. 모델·인증·권한·proxy를 자동 변경하지 않는다. 샌드박스 오류는 호스트의 승인 절차로 해결한다. 승인받아 워커의 기존 권한 프로필을 유지할 경우에만 `--provider codex --codex-permissions inherit`를 **새 attempt로 명시**한다. 이 옵션은 `-s`를 생략하며 OS 수준 read-only 보장이 아니다. 자동 fallback으로 쓰지 않는다. 같은 환경·선택 CLI·경로·브랜치·지침의 유효한 discovery는 한 과업 안에서 재사용하고, 관련 조건이 바뀌면 다시 확인한다.
 
 ## 본작업 위임과 중계
 
 [실행·검증 계약](references/execution.md)을 읽고 선택 CLI의 네이티브 구문으로 호출한다. `discover.py`는 **읽기 전용 연결 확인 전용**이며 자유 작업을 실행하는 우회 진입점이 아니다.
+
+프로필을 선택한 본작업에도 같은 workspace·provider·진입 지침을 적용한다. 연결 receipt의 워커명·경로·provider를 실제 호출과 대조한다. 특정 워커의 연결 성공을 다른 워커의 성공으로 재사용하지 않는다. 프로필 변경은 기존 연결 근거의 관련 조건을 다시 확인하는 시점이다.
 
 - 요청 원문, 승인된 범위, 기존 plan/checklist·재개 지점, 필요한 근거 경로, 금지 범위, 기대 산출물·검증을 프롬프트에 전달한다. 현재 하네스의 지시를 워커 프로젝트의 승인으로 확대하지 않는다.
 - 파일 편집·빌드·서빙·다운로드·배포 등은 사용자 요청과 워커 자체 절차의 승인 범위에서만 한다. 이미 유효한 승인·검사는 이어받는다. 워커 프로젝트의 내부 A2A는 그 프로젝트가 소유하며 여기서 재구현하거나 직접 서브노드를 제어하지 않는다.

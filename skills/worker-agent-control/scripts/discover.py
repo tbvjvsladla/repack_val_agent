@@ -11,12 +11,69 @@ import signal
 import subprocess
 import sys
 import time
+from typing import Any
 
 SKILL = Path(__file__).resolve().parents[1]
+PROVIDERS = ("claude", "codex")
 
 
 class DiscoveryError(Exception):
     pass
+
+
+def default_config_path() -> Path:
+    """The local config.json, or the shipped example when no local config exists."""
+    local = SKILL / "config.json"
+    return local if local.exists() else SKILL / "config.example.json"
+
+
+def load_worker_config(path: Path, worker: str | None) -> dict[str, Any]:
+    """Select a named worker profile, or keep the single-workspace config as it is."""
+    config = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(config, dict):
+        message = "CONFIG_NOT_OBJECT"
+        raise DiscoveryError(message)
+    profiles = config.get("workers")
+    if profiles is not None:
+        if not isinstance(profiles, dict) or not profiles:
+            message = "WORKERS_NOT_NONEMPTY_OBJECT"
+            raise DiscoveryError(message)
+        if worker is None:
+            raise DiscoveryError("WORKER_REQUIRED:" + ",".join(sorted(profiles)))
+        profile = profiles.get(worker)
+        if not isinstance(profile, dict):
+            raise DiscoveryError("UNKNOWN_WORKER:" + worker)
+        config = {key: value for key, value in config.items() if key != "workers"} | profile
+        if not isinstance(config.get("workspace"), str) or not config["workspace"].strip():
+            raise DiscoveryError("CONFIG_WORKSPACE_MISSING:" + worker)
+    elif worker is not None:
+        raise DiscoveryError("WORKER_NOT_CONFIGURED:" + worker)
+    validate_config(config)
+    return config
+
+
+def validate_config(config: dict[str, Any]) -> None:
+    """Reject malformed routing and budgets before a native process can start."""
+    if config.get("default_provider") not in PROVIDERS:
+        message = "CONFIG_PROVIDER_INVALID"
+        raise DiscoveryError(message)
+    workspace = config.get("workspace")
+    if workspace is not None and (not isinstance(workspace, str) or not workspace.strip()):
+        message = "CONFIG_WORKSPACE_INVALID"
+        raise DiscoveryError(message)
+    contexts = config.get("context_files")
+    if not isinstance(contexts, list) or not contexts:
+        message = "CONFIG_CONTEXT_FILES_MISSING"
+        raise DiscoveryError(message)
+    if any(not isinstance(value, str) or not value.strip() for value in contexts):
+        message = "CONFIG_CONTEXT_FILES_INVALID"
+        raise DiscoveryError(message)
+    for key in ("discovery_timeout_seconds", "claude_discovery_max_turns"):
+        if key == "claude_discovery_max_turns" and key not in config:
+            continue  # Only a Claude discovery uses it; parse_arguments requires it there.
+        value = config.get(key)
+        if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+            raise DiscoveryError("CONFIG_POSITIVE_INTEGER_REQUIRED:" + key)
 
 
 def write_json(path: Path, data: object) -> None:
@@ -118,35 +175,70 @@ def validate_identity(identity: dict, workspace: Path, provider: str,
         raise DiscoveryError("KEY_RULES_MISSING")
 
 
-def main() -> int:
-    try:
-        config = json.loads((SKILL / "config.json").read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        config = json.loads((SKILL / "config.example.json").read_text(encoding="utf-8"))
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--provider", choices=["claude", "codex"], default=config["default_provider"])
-    connected = config.get("workspace")
-    parser.add_argument("--workspace", type=Path, default=Path(connected) if connected else None)
-    parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--timeout", type=int, default=config["discovery_timeout_seconds"])
-    parser.add_argument("--codex-permissions", choices=["read-only", "inherit"], default="read-only",
-                        help="inherit explicitly keeps the worker's configured permissions; requires caller authorization")
-    args = parser.parse_args()
+def apply_config_defaults(parser: argparse.ArgumentParser, args: argparse.Namespace,
+                          config: dict[str, Any]) -> None:
+    """Fill provider, workspace and timeout from the config; a named profile cannot be overridden."""
+    if args.worker is not None:
+        if args.provider is not None and args.provider != config["default_provider"]:
+            parser.error("WORKER_PROVIDER_OVERRIDE_REJECTED")
+        if args.workspace is not None and args.workspace.resolve() != Path(config["workspace"]).resolve():
+            parser.error("WORKER_WORKSPACE_OVERRIDE_REJECTED")
+    args.provider = args.provider or config["default_provider"]
+    if args.provider == "claude" and "claude_discovery_max_turns" not in config:
+        parser.error("CONFIG_POSITIVE_INTEGER_REQUIRED:claude_discovery_max_turns")
+    if args.workspace is None and config.get("workspace"):
+        args.workspace = Path(config["workspace"])
+    if args.timeout is None:
+        args.timeout = config["discovery_timeout_seconds"]
+
+
+def check_attempt_paths(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    """Reject bad budgets and attempt paths before the output directory is created."""
     if args.timeout <= 0:
         parser.error("--timeout must be positive")
     if args.provider != "codex" and args.codex_permissions != "read-only":
         parser.error("--codex-permissions is only applicable to --provider codex")
     if args.workspace is None:
-        parser.error("no worker is connected: set workspace in config.json or pass --workspace")
-    workspace = args.workspace.resolve()
-    output = args.output_dir.resolve()
-    if output == workspace or workspace in output.parents:
+        parser.error("no worker is connected: pass --worker, set workspace in config.json or pass --workspace")
+    args.workspace = args.workspace.resolve()
+    args.output_dir = args.output_dir.resolve()
+    if args.output_dir == args.workspace or args.workspace in args.output_dir.parents:
         parser.error("--output-dir must be outside the worker workspace")
-    if output.exists():
+    if args.output_dir.exists():
         parser.error("--output-dir must be a new attempt directory")
+
+
+def parse_arguments() -> tuple[argparse.Namespace, dict[str, Any]]:
+    """Resolve the worker, provider and workspace before anything is started."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--config", type=Path,
+                        help="worker settings file (default: config.json, else config.example.json)")
+    parser.add_argument("--worker", help="worker name from the config's workers object; never chosen automatically")
+    parser.add_argument("--provider", choices=PROVIDERS)
+    parser.add_argument("--workspace", type=Path)
+    parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--timeout", type=int)
+    parser.add_argument("--codex-permissions", choices=["read-only", "inherit"], default="read-only",
+                        help="inherit explicitly keeps the worker's configured permissions; requires caller authorization")
+    args = parser.parse_args()
+    args.config = (args.config or default_config_path()).resolve()
+    try:
+        config = load_worker_config(args.config, args.worker)
+    except (OSError, ValueError, DiscoveryError) as exc:
+        parser.error(f"{exc} (config {args.config})")
+    apply_config_defaults(parser, args, config)
+    check_attempt_paths(parser, args)
+    return args, config
+
+
+def main() -> int:
+    args, config = parse_arguments()
+    workspace = args.workspace
+    output = args.output_dir
     output.mkdir(parents=True, mode=0o700)
     receipt = {
         "provider": args.provider, "workspace": str(workspace), "kind": "read_only_discovery",
+        "worker": args.worker, "config_path": str(args.config),
         "preflight_ready": False, "primary_invoked": False, "exit_code": None,
         "identity_verified": False, "git_unchanged": False, "fallback_used": False,
         "task_state": "rejected", "failure_code": None,

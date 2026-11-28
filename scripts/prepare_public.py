@@ -156,18 +156,29 @@ def adapter_links() -> dict[str, str]:
     return links
 
 
-def environment_replacements() -> dict[str, str]:
-    replacements = {str(ROOT): "/workspace/repack_val_agent"}
+def worker_workspaces() -> list[Path]:
+    """Workspace paths from the local worker config: single-workspace or named workers."""
     path = ROOT / WORKER_CONFIG
     if path.is_symlink():
         raise ValueError("Symlink worker config rejected")
-    if path.exists():
-        connected = json.loads(path.read_text(encoding="utf-8")).get("workspace")
-        workspace = Path(connected) if connected else Path()
-        if connected and workspace.is_absolute():
-            replacements[str(workspace)] = "/workspace/target_project"
+    if not path.exists():
+        return []
+    config = json.loads(path.read_text(encoding="utf-8"))
+    profiles = config.get("workers")
+    entries = [config] if profiles is None else list(profiles.values())
+    # A single-workspace config may leave workspace null until a worker is connected.
+    return [Path(entry["workspace"]) for entry in entries if entry.get("workspace")]
+
+
+def environment_replacements() -> dict[str, str]:
+    replacements = {str(ROOT): "/workspace/repack_val_agent"}
+    workspaces = worker_workspaces()
+    for index, workspace in enumerate(workspaces, 1):
+        target = "/workspace/target_project" if len(workspaces) == 1 else f"/workspace/target_project_{index}"
+        if workspace.is_absolute():
+            replacements[str(workspace)] = target
         if workspace.name and workspace.name not in {"target_project", ROOT.name}:
-            replacements[workspace.name] = "target_project"
+            replacements[workspace.name] = Path(target).name
     home = str(Path.home())
     if home not in {"/", "/home/user"}:
         replacements[home] = "/home/user"
